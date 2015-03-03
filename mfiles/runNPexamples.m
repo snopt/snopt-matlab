@@ -6,16 +6,16 @@ setpath;  % defines the path
 snscreen on
 
 fprintf('\n============================================================= ');
-fprintf('\nsntoy: Solving diet LP problem using snsolve ... ');
+fprintf('\nsntoy: Solving diet LP problem using SNOPT ... ');
 [x,xmul,F,Fmul,info] = t1diet;
 
 fprintf('\n============================================================= ');
-fprintf('\nsntoy: Solving toy problem using snsolve ... ');
+fprintf('\nsntoy: Solving toy problem using SNOPT ... ');
 snset ('Defaults');    % Advisable between runs of different problems
 [x,xmul,F,Fmul,info] = sntoy;
 
 fprintf('\n============================================================= ');
-fprintf('\nhsmain: snsolve solves hs47 ... ');
+fprintf('\nhsmain: snopt solves hs47 ... ');
 snset ('Defaults');
 [x,xmul,F,Fmul,info] = hsmain;
 

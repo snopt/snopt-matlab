@@ -26,8 +26,8 @@ Fstate = zeros(4,1);
 Flow   = [-Inf,   0,   2,   4]';
 Fupp   = [ Inf, Inf,   2,   4]';
 
-[x,F,inform] = snsolve(x,xlow,xupp,xmul,xstate, ...
-		         Flow,Fupp,Fmul,Fstate,@toyusrfun2);
+[x,F,inform] = snopt(x,xlow,xupp,xmul,xstate, ...
+		     Flow,Fupp,Fmul,Fstate,@toyusrfun2);
 
 snset ('Defaults');
 snprint off;

@@ -1,6 +1,6 @@
 function [x,Obj,INFO] = hs76
 % Matlab example quadratic problem
-% This example calls sqSolve.
+% This example calls SQOPT.
 %
 %   HS 76
 %
@@ -45,7 +45,7 @@ xl = zeros(n,1);
 xu = []; % No upper bounds on x
 
 % Solve the problem.
-[x,Obj,INFO,lambda] = sqsolve( 'HS76', @hs76Hx, f, x0, xl, xu, A, al, au );
+[x,Obj,INFO,lambda] = sqopt( 'HS76', @hs76Hx, f, x0, xl, xu, A, al, au );
 
 sqprint ('off');
 sqscreen ('off');

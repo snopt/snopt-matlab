@@ -14,8 +14,8 @@ snseti ('Major Iteration limit', 250);
 [x,xlow,xupp,xmul,xstate,Flow,Fupp,Fmul,Fstate] = hexagon;
 snset  ('Maximize');
 
-[x,F,INFO] = snsolve(x,xlow,xupp,xmul,xstate,...
-		       Flow,Fupp,Fmul,Fstate,@snoptuserfun);
+[x,F,INFO] = snopt(x,xlow,xupp,xmul,xstate,...
+		   Flow,Fupp,Fmul,Fstate,@snoptuserfun);
 
 itns   =  sngeti ('iw 421')
 majors =  sngeti ('iw 422')

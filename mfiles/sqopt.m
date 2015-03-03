@@ -1,11 +1,11 @@
-function [x,Obj,INFO,lambda] = sqsolve( name, Hx, c, x0, xl, xu, A, al, au )
-% [x,Obj,INFO,pi,rc] = sqsolve ( name, Hx, c, x0, xl, xu, A, al, au );
+function [x,Obj,INFO,lambda] = sqopt( name, Hx, c, x0, xl, xu, A, al, au )
+% [x,Obj,INFO,pi,rc] = sqopt ( name, Hx, c, x0, xl, xu, A, al, au );
 %
 % This function solves the quadratic optimization problem:
 %   minimize:
-%              c'x + H*x
+%              c'x + x'*H*x
 %   subject to:
-%            xl <= x <= xu
+%            xl <=  x <= xu
 %            al <= Ax <= au
 % where:
 %  x        is the column vector of initial values of the unknowns
@@ -16,12 +16,12 @@ function [x,Obj,INFO,lambda] = sqsolve( name, Hx, c, x0, xl, xu, A, al, au )
 %  al, au   are the lower and upper bounds of the linear constraints
 %
 % Calling sequences:
-%  x = sqsolve ( name, Hx, c, x0, xl, xu, A, al, au )
+%  x = sqopt ( name, Hx, c, x0, xl, xu, A, al, au )
 %
-%  [x]                = sqsolve ( name, Hx, c, x0, xl, xu, A, al, au )
-%  [x,Obj]            = sqsolve ( name, Hx, c, x0, xl, xu, A, al, au )
-%  [x,Obj,INFO]       = sqsolve ( name, Hx, c, x0, xl, xu, A, al, au )
-%  [x,Obj,INFO,pi,rc] = sqsolve ( name, Hx, c, x0, xl, xu, A, al, au )
+%  [x]                = sqopt ( name, Hx, c, x0, xl, xu, A, al, au )
+%  [x,Obj]            = sqopt ( name, Hx, c, x0, xl, xu, A, al, au )
+%  [x,Obj,INFO]       = sqopt ( name, Hx, c, x0, xl, xu, A, al, au )
+%  [x,Obj,INFO,pi,rc] = sqopt ( name, Hx, c, x0, xl, xu, A, al, au )
 %
 %
 % INPUT:
@@ -58,7 +58,7 @@ function [x,Obj,INFO,lambda] = sqsolve( name, Hx, c, x0, xl, xu, A, al, au )
 solveopt = 1;
 
 if ( nargin ~= 9 ),
-  error('Wrong number of input arguments for sqsolve');
+  error('Wrong number of input arguments for sqopt');
 end
 
 if (ischar(Hx))
