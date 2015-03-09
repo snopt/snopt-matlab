@@ -18,7 +18,7 @@ function [x,fval,exitflag,lambda] = snsolve(userobj,x0,A,b,varargin)
 
 
 [mi,n]  =  size(A);
-nonlcon =  dummyCon;
+nonlcon =  @dummyCon;
 
 if (ischar(userobj))
   myobj = str2func(userobj);
