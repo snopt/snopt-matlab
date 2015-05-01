@@ -38,6 +38,7 @@ subroutine mexFunction ( nlhs, plhs, nrhs, prhs )
   !    17       Compute the Jacobian structure via snJac
   !
   ! 18 Sep 2013: Current version.
+  ! 01 May 2015: Added ability to modify initial amount of workspace
   !=====================================================================
   ! Matlab
   mwPointer        :: mxGetN, mxGetPr
@@ -68,7 +69,7 @@ subroutine mexFunction ( nlhs, plhs, nrhs, prhs )
      if ( strlen > 80 ) call mexErrMsgTxt( 'Print filename is too long' )
 
      if ( strlen > 0 ) then
-        call mxGetString ( prhs(2), filename, strlen )
+        call mxGetString( prhs(2), filename, strlen )
      else
         call mexErrMsgTxt( 'Empty print filename' )
      end if
@@ -90,7 +91,7 @@ subroutine mexFunction ( nlhs, plhs, nrhs, prhs )
      if ( strlen > 80 ) call mexErrMsgTxt( 'Summary filename is too long' )
 
      if ( strlen > 0 ) then
-        call mxGetString ( prhs(2), filename, strlen )
+        call mxGetString( prhs(2), filename, strlen )
      else
         call mexErrMsgTxt( 'Empty summary filename' )
      end if

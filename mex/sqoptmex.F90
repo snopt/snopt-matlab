@@ -37,6 +37,7 @@ subroutine mexFunction( nlhs, plhs, nrhs, prhs )
   !    16       Screen off
   !
   ! 13 Dec 2013: Current version.
+  ! 01 May 2015: Added ability to modify initial amount of workspace
   !=====================================================================
   ! Matlab
   mwPointer        :: mxGetN, mxGetPr
@@ -244,7 +245,7 @@ subroutine sqmxSolve ( nlhs, plhs, nrhs, prhs )
   if ( strlen > 8 ) strlen = 8
 
   probName = ''
-  call mxGetString ( prhs(2), probName, strlen )
+  call mxGetString( prhs(2), probName, strlen )
 
 
   !---------------------------------------------------------------------
@@ -546,7 +547,7 @@ subroutine snmxOptions ( iOpt, nlhs, plhs, nrhs, prhs )
   if ( strlen > 50 ) call mexErrMsgTxt( 'Option string is too long' )
 
   if ( strlen > 0 ) then
-     call mxGetString ( prhs(2), buffer, strlen )
+     call mxGetString( prhs(2), buffer, strlen )
   else
      call mexErrMsgTxt( 'Empty option string' )
   end if
@@ -633,7 +634,7 @@ subroutine snmxSpecs ( nlhs, plhs, nrhs, prhs )
   if ( strlen > 120 ) call mexErrMsgTxt( 'Specs filename is too long' )
 
   if ( strlen > 0 ) then
-     call mxGetString ( prhs(2), filename, strlen )
+     call mxGetString( prhs(2), filename, strlen )
   else
      call mexErrMsgTxt( 'Empty spc filename' )
   end if
