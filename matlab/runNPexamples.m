@@ -15,6 +15,11 @@ snset ('Defaults');    % Advisable between runs of different problems
 [x,xmul,F,Fmul,info] = sntoy;
 
 fprintf('\n============================================================= ');
+fprintf('\ntoymin: Solving toy problem using fmincon-style SNOPT ... ');
+snset ('Defaults');    % Advisable between runs of different problems
+[x,F,info] = toymin;
+
+fprintf('\n============================================================= ');
 fprintf('\nhsmain: snopt solves hs47 ... ');
 snset ('Defaults');
 [x,xmul,F,Fmul,info] = hsmain;
@@ -38,5 +43,10 @@ fprintf('\n============================================================= ');
 fprintf('\nsnoptmain3: snopt solves hexagon with some derivatives ... ');
 snset ('Defaults');
 [x,F,info] = snoptmain3;
+
+fprintf('\n============================================================= ');
+fprintf('\nhs116: snopt solves hs116 ... ');
+snset ('Defaults');
+[x,xmul,F,Fmul,info] = hs116;
 
 snscreen off
