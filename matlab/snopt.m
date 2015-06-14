@@ -121,7 +121,6 @@ function [x,F,inform,xmul,Fmul] = snopt( x, xlow, xupp, xmul, xstate,...
 %      ordering of G may not necessarily correspond to (iGfun,jGvar)
 %      computed by snJac().
 
-m      = length(Flow);
 n      = length(x);
 ObjAdd = 0;
 ObjRow = 1;
@@ -132,20 +131,24 @@ else
   userFG = userfun;
 end
 
+F0 = userFG(x);
+nF = length(F0);
+
+
 if nargin == 10,
 
   % Calling sequence 1
   % Derivatives are estimated by differences.
   % Call snJac to estimate the pattern of nonzeros for the Jacobian.
 
-  [A,iAfun,jAvar,iGfun,jGvar] = snJac(userFG,x,xlow,xupp,m);
+  [A,iAfun,jAvar,iGfun,jGvar] = snJac(userFG,x,xlow,xupp,nF);
 elseif nargin == 12
 
   % Calling sequence 2
   % Derivatives are estimated by differences.
   % Call snJac to estimate the pattern of nonzeros for the Jacobian.
 
-  [A,iAfun,jAvar,iGfun,jGvar] = snJac(userFG,x,xlow,xupp,m);
+  [A,iAfun,jAvar,iGfun,jGvar] = snJac(userFG,x,xlow,xupp,nF);
   ObjAdd = varargin{1};
   ObjRow = varargin{2};
 elseif nargin == 15
