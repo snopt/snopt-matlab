@@ -1,6 +1,6 @@
 % function  ivalue = sngeti( option )
 %     The  optional INTEGER-valued parameter defined by the
-%     string "option" is assigned to rvalue.
+%     string "option" is returned.
 %
 %     For a description of the optional parameters, see
 %     the snopt documentation.

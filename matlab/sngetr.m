@@ -1,6 +1,6 @@
 % function  rvalue = sngetr( option )
 %     The REAL-VALUED optional parameter defined by the string "option"
-%     is assigned to rvalue.
+%     is returned.
 %
 %     For a description of all the optional parameters, see the
 %     snopt documentation.
