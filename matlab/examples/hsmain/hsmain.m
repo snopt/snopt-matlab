@@ -122,10 +122,10 @@ x = [  2;
        2;
        0.5   ];
 
-xlow   = -Inf*ones(n,1);
-xupp   =  Inf*ones(n,1);
-xstate =  zeros(n,1);
-xmul   =  zeros(n,1);
+xlow   = [];
+xupp   = [];
+xstate = [];
+xmul   = [];
 
 Flow   = -Inf*ones(neF,1);
 Fupp   =  Inf*ones(neF,1);
@@ -139,5 +139,5 @@ Fupp(4) = 1;
 Flow(5) = 1;
 Fupp(5) = 1;
 
-Fmul    = zeros(neF,1);
-Fstate  = zeros(neF,1);
+Fmul    = [];
+Fstate  = [];
