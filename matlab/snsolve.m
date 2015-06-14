@@ -17,7 +17,19 @@ function [x,fval,exitflag,lambda] = snsolve(userobj,x0,A,b,varargin)
 % 26 November 2012.
 
 
-[mi,n]  =  size(A);
+if isrow(x0),
+  [xi,n] = size(x0);
+elseif iscolumn(x0),
+  [n,xi] = size(x0);
+elseif isempty(x0);
+  fprintf('Error: You must provide a non-empty starting point.\n');
+  return
+else
+  fprintf('Error: You must provide a row or column vector for the starting point.\n');
+  return
+end
+
+[mi,n0]  =  size(A);
 nonlcon =  @dummyCon;
 
 if (ischar(userobj))
@@ -26,15 +38,14 @@ else
   myobj = userobj;
 end
 
-
 if     nargin == 4,
   me       = 0;
   nli      = 0;
   nle      = 0;
   Aeq      = [];
   beq      = [];
-  xlow     = -inf*ones(n,1);
-  xupp     =  inf*ones(n,1);
+  xlow     = [];
+  xupp     = [];
 
 elseif nargin == 6,
   Aeq      = varargin{1};
@@ -43,8 +54,8 @@ elseif nargin == 6,
   [me,n0]  = size(Aeq);
   nli      = 0;
   nle      = 0;
-  xlow     = -inf*ones(n,1);
-  xupp     =  inf*ones(n,1);
+  xlow     = [];
+  xupp     = [];
 
 elseif nargin == 8,
   Aeq      = varargin{1};
@@ -52,7 +63,7 @@ elseif nargin == 8,
   xlow     = varargin{3};
   xupp     = varargin{4};
 
-  [me,n0 ] = size(Aeq);
+  [me,n0]  = size(Aeq);
   nli      = 0;
   nle      = 0;
 
@@ -73,11 +84,6 @@ elseif nargin == 9,
   [c,ceq]  = feval(nonlcon,x0);
   nli      = size(c,1);
   nle      = size(ceq,1);
-
-  if isempty(xlow),
-    xlow   = -inf*ones(n,1);
-    xupp   =  inf*ones(n,1);
-  end
 
 else
   error('Wrong number of input arguments')
