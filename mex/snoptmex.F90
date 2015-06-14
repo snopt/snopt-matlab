@@ -217,7 +217,7 @@ subroutine snmxSolve ( nlhs, plhs, nrhs, prhs )
   ! SNOPT
   character*8      :: probName
   integer          :: info, Errors
-  integer          :: Start, ObjRow, n, nF, lenA, lenG, neA, &
+  integer          :: Start, ObjRow, n, nF, lenA, lenG, neA, tmp, &
                       nxname, nFname, mincw, miniw, minrw, nInf, nS
   double precision :: rinfo, ObjAdd, sInf
   external         :: snMemA, snoptA, matlabFG
@@ -244,53 +244,99 @@ subroutine snmxSolve ( nlhs, plhs, nrhs, prhs )
   n  = mxGetM(prhs(2))
   nF = mxGetM(prhs(7))
 
-  call checkCol( prhs(2), 1, 'x' )
-
-  call checkRow( prhs(3), n, 'xlow' )
-  call checkCol( prhs(3), 1, 'xlow' )
-
-  call checkRow( prhs(4), n, 'xupp' )
-  call checkCol( prhs(4), 1, 'xupp' )
-
-  call checkRow( prhs(5), n, 'xmul' )
-  call checkCol( prhs(5), 1, 'xmul' )
-
-  call checkRow( prhs(6), n, 'xstate' )
-  call checkCol( prhs(6), 1, 'xstate' )
-
   allocate( x(n),  xlow(n),  xupp(n),  xmul(n),  xstate(n) )
   allocate( F(nF), Flow(nF), Fupp(nF), Fmul(nF), Fstate(nF) )
   allocate( rtmp(max(n,nF)) )
 
-  call mxCopyPtrToReal8( mxGetPr(prhs(2)),    x, n )
-  call mxCopyPtrToReal8( mxGetPr(prhs(3)), xlow, n )
-  call mxCopyPtrToReal8( mxGetPr(prhs(4)), xupp, n )
-  call mxCopyPtrToReal8( mxGetPr(prhs(5)), xmul, n )
-  call mxCopyPtrToReal8( mxGetPr(prhs(6)), rtmp, n )
-  xstate = rtmp(1:n)
+  ! Get initial x
+  tmp = mxGetM(prhs(2))
+  if ( tmp > 0 ) then
+     call checkCol( prhs(2), 1, 'x' )
+     call mxCopyPtrToReal8( mxGetPr(prhs(2)), x, n )
+  else
+     x(1:n) = 0.0
+  end if
 
-  call checkCol( prhs(7),   1, 'Flow' )
+  ! Get lower bounds
+  tmp = mxGetM(prhs(3))
+  if ( tmp > 0 ) then
+     call checkRow( prhs(3), n, 'xlow' )
+     call checkCol( prhs(3), 1, 'xlow' )
+     call mxCopyPtrToReal8( mxGetPr(prhs(3)), xlow, n )
+  else
+     xlow = -infBnd
+  end if
 
-  call checkRow( prhs(8),  nF, 'Fupp' )
-  call checkCol( prhs(8),   1, 'Fupp' )
+  ! Get upper bounds
+  tmp = mxGetM(prhs(4))
+  if ( tmp > 0 ) then
+     call checkRow( prhs(4), n, 'xupp' )
+     call checkCol( prhs(4), 1, 'xupp' )
+     call mxCopyPtrToReal8( mxGetPr(prhs(4)), xupp, n )
+  else
+     xupp = infBnd
+  end if
 
-  call checkRow( prhs(9),  nF, 'Fmul' )
-  call checkCol( prhs(9),   1, 'Fmul' )
+  ! Get initial multipliers
+  tmp = mxGetM(prhs(5))
+  if ( tmp > 0 ) then
+     call checkRow( prhs(5), n, 'xmul' )
+     call checkCol( prhs(5), 1, 'xmul' )
+     call mxCopyPtrToReal8( mxGetPr(prhs(5)), xmul, n )
+  else
+     xmul = 0
+  end if
 
-  call checkRow( prhs(10), nF, 'Fstate' )
-  call checkCol( prhs(10),  1, 'Fstate' )
+  ! Get initial states
+  tmp = mxGetM(prhs(6))
+  if ( tmp > 0 ) then
+     call checkRow( prhs(6), n, 'xstate' )
+     call checkCol( prhs(6), 1, 'xstate' )
+     call mxCopyPtrToReal8( mxGetPr(prhs(6)), rtmp, n )
+     xstate = rtmp(1:n)
+  else
+     xstate = 0
+  end if
 
+  tmp = mxGetM(prhs(7))
+  if ( tmp > 0 ) then
+     call checkCol( prhs(7),   1, 'Flow' )
+     call mxCopyPtrToReal8( mxGetPr(prhs(7)),  Flow, nF )
+  else
+     Flow = -infBnd
+  end if
 
-  call mxCopyPtrToReal8( mxGetPr(prhs(7)),  Flow, nF )
-  call mxCopyPtrToReal8( mxGetPr(prhs(8)),  Fupp, nF )
-  call mxCopyPtrToReal8( mxGetPr(prhs(9)),  Fmul, nF )
-  call mxCopyPtrToReal8( mxGetPr(prhs(10)), rtmp, nF )
-  Fstate = rtmp(1:nF)
+  tmp = mxGetM(prhs(8))
+  if ( tmp > 0 ) then
+     call checkRow( prhs(8),  nF, 'Fupp' )
+     call checkCol( prhs(8),   1, 'Fupp' )
+     call mxCopyPtrToReal8( mxGetPr(prhs(8)),  Fupp, nF )
+  else
+     Fupp = infBnd
+  end if
+
+  tmp = mxGetM(prhs(9))
+  if ( tmp > 0 ) then
+     call checkRow( prhs(9),  nF, 'Fmul' )
+     call checkCol( prhs(9),   1, 'Fmul' )
+     call mxCopyPtrToReal8( mxGetPr(prhs(9)),  Fmul, nF )
+  else
+     Fmul = 0.0
+  end if
+
+  tmp = mxGetM(prhs(10))
+  if ( tmp > 0 ) then
+     call checkRow( prhs(10), nF, 'Fstate' )
+     call checkCol( prhs(10),  1, 'Fstate' )
+     call mxCopyPtrToReal8( mxGetPr(prhs(10)), rtmp, nF )
+     Fstate = rtmp(1:nF)
+  else
+     Fstate = 0
+  end if
 
   ObjAdd  = mxGetScalar(prhs(11))
   rtmp(1) = mxGetScalar(prhs(12))
   ObjRow  = rtmp(1)
-
 
   !---------------------------------------------------------------------
   ! Get the Jacobian structure (linear and nonlinear)
