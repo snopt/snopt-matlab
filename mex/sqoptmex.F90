@@ -223,8 +223,6 @@ subroutine sqmxSolve ( nlhs, plhs, nrhs, prhs )
   double precision :: rinfo, Obj, ObjAdd, sInf
   external         :: sqopt, matlabHx
 
-  logical,          parameter   :: freebie = .false.
-  integer,          parameter   :: maxCol = 300, maxRow = 300
   double precision, parameter   :: infBnd = 1.0d+20
 
   character*8,      allocatable :: Names(:)
@@ -256,12 +254,6 @@ subroutine sqmxSolve ( nlhs, plhs, nrhs, prhs )
   m   = mxGetScalar(prhs(3))
   n   = mxGetScalar(prhs(4))
   nnH = n
-
-  if ( freebie ) then
-     if ( n > maxCol ) call mexErrMsgTxt( 'Maximum column size of 300 exceeded' )
-     if ( m > maxRow ) call mexErrMsgTxt( 'Maximum row size of 300 exceeded' )
-  end if
-
 
   !---------------------------------------------------------------------
   ! Hessian matrix

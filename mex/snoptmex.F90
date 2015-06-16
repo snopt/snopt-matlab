@@ -222,8 +222,6 @@ subroutine snmxSolve ( nlhs, plhs, nrhs, prhs )
   double precision :: rinfo, ObjAdd, sInf
   external         :: snMemA, snoptA, matlabFG
 
-  logical,          parameter   :: freebie = .false.
-  integer,          parameter   :: maxCol = 300, maxRow = 300
   double precision, parameter   :: infBnd = 1.0d+20
 
   character*8,      allocatable :: xname(:), Fname(:)
@@ -245,11 +243,6 @@ subroutine snmxSolve ( nlhs, plhs, nrhs, prhs )
   ! Get number of variables and constraints
   n  = mxGetM(prhs(2))
   nF = mxGetM(prhs(7))
-
-  if ( freebie ) then
-     if (  n > maxCol ) call mexErrMsgTxt( 'Maximum column size of 300 exceeded' )
-     if ( nF > maxRow ) call mexErrMsgTxt( 'Maximum row size of 300 exceeded' )
-  end if
 
   allocate( x(n),  xlow(n),  xupp(n),  xmul(n),  xstate(n) )
   allocate( F(nF), Flow(nF), Fupp(nF), Fmul(nF), Fstate(nF) )
