@@ -223,6 +223,8 @@ subroutine sqmxSolve ( nlhs, plhs, nrhs, prhs )
   double precision :: rinfo, Obj, ObjAdd, sInf
   external         :: sqopt, matlabHx
 
+  logical,          parameter   :: freebie = .false.
+  integer,          parameter   :: maxCol = 300, maxRow = 300
   double precision, parameter   :: infBnd = 1.0d+20
 
   character*8,      allocatable :: Names(:)
@@ -255,6 +257,11 @@ subroutine sqmxSolve ( nlhs, plhs, nrhs, prhs )
   n   = mxGetScalar(prhs(4))
   nnH = n
 
+  if ( freebie ) then
+     if ( n > maxCol ) call mexErrMsgTxt( 'Maximum column size of 300 exceeded' )
+     if ( m > maxRow ) call mexErrMsgTxt( 'Maximum row size of 300 exceeded' )
+  end if
+
 
   !---------------------------------------------------------------------
   ! Hessian matrix
@@ -283,7 +290,7 @@ subroutine sqmxSolve ( nlhs, plhs, nrhs, prhs )
 
 
   !---------------------------------------------------------------------
-  ! AllocateSQOPT space
+  ! Allocate SQOPT space
   !---------------------------------------------------------------------
   allocate( x(n+m), hs(n+m), hEtype(n+m), pi(m), rc(n+m) )
   allocate( bl(n+m), bu(n+m) )
@@ -494,6 +501,9 @@ subroutine sqmxSolve ( nlhs, plhs, nrhs, prhs )
 
 
   ! Deallocatememory
+  if ( HxHandle /= 0 ) call mxDestroyArray( HxHandle )
+  HxHandle = 0
+
   if ( allocated(rtmp) )   deallocate( rtmp )
   if ( allocated(x) )      deallocate( x )
   if ( allocated(pi) )     deallocate( pi )

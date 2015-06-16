@@ -222,6 +222,8 @@ subroutine snmxSolve ( nlhs, plhs, nrhs, prhs )
   double precision :: rinfo, ObjAdd, sInf
   external         :: snMemA, snoptA, matlabFG
 
+  logical,          parameter   :: freebie = .false.
+  integer,          parameter   :: maxCol = 300, maxRow = 300
   double precision, parameter   :: infBnd = 1.0d+20
 
   character*8,      allocatable :: xname(:), Fname(:)
@@ -243,6 +245,11 @@ subroutine snmxSolve ( nlhs, plhs, nrhs, prhs )
   ! Get number of variables and constraints
   n  = mxGetM(prhs(2))
   nF = mxGetM(prhs(7))
+
+  if ( freebie ) then
+     if (  n > maxCol ) call mexErrMsgTxt( 'Maximum column size of 300 exceeded' )
+     if ( nF > maxRow ) call mexErrMsgTxt( 'Maximum row size of 300 exceeded' )
+  end if
 
   allocate( x(n),  xlow(n),  xupp(n),  xmul(n),  xstate(n) )
   allocate( F(nF), Flow(nF), Fupp(nF), Fmul(nF), Fstate(nF) )
@@ -530,7 +537,15 @@ subroutine snmxSolve ( nlhs, plhs, nrhs, prhs )
   end if
 
 
-  ! Deallocatememory
+  ! Deallocate memory
+  if ( fgHandle  /= 0 ) call mxDestroyArray( fgHandle )
+  if ( objHandle /= 0 ) call mxDestroyArray( objHandle )
+  if ( conHandle /= 0 ) call mxDestroyArray( conHandle )
+
+  fgHandle  = 0
+  objHandle = 0
+  conHandle = 0
+
   if ( allocated(rtmp) )   deallocate( rtmp )
   if ( allocated(x) )      deallocate( x )
   if ( allocated(xmul) )   deallocate( xmul )
@@ -1015,8 +1030,8 @@ subroutine matlabFG( Status, n, x, needF, nF, F, needG, lenG, G, &
   call mxDestroyArray( prhs(2) )
   call mxDestroyArray( prhs(3) )
   call mxDestroyArray( prhs(4) )
-  if ( objHandle /= 0 ) call mxDestroyArray( prhs(5) )
-  if ( conHandle /= 0 ) call mxDestroyArray( prhs(6) )
+  if ( nrhs >= 5 ) call mxDestroyArray( prhs(5) )
+  if ( nrhs >= 6 ) call mxDestroyArray( prhs(6) )
 
 end subroutine matlabFG
 
