@@ -39,13 +39,11 @@ ObjAdd = 0;
 x      = ones(4,1);
 xlow   = [  0,-Inf,-Inf,   0]';
 xupp   = [Inf, Inf, Inf, Inf]';
-xmul   = zeros(4,1);
-xstate = zeros(4,1);
+xmul   = []; xstate = [];
 
 Flow   = [ -Inf,   0, 2, 4]';
 Fupp   = [  Inf, Inf, 2, 4]';
-Fmul   = zeros(4,1);
-Fstate = zeros(4,1);
+Fmul   = []; Fstate = [];
 
 %     ------------------------------------------------------------------
 %     The nonzero pattern of the Jacobian is as follows:
