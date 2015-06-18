@@ -16,56 +16,40 @@ function [x,fval,exitflag,lambda] = snsolve(userobj,x0,A,b,varargin)
 %
 % 26 November 2012.
 
+% Check for starting point x0.
+x0 = colvec(x0,'x0',0,0);
+n  = length(x0);
 
-if isrow(x0),
-  [xi,n] = size(x0);
-elseif iscolumn(x0),
-  [n,xi] = size(x0);
-elseif isempty(x0);
-  fprintf('Error: You must provide a non-empty starting point.\n');
-  return
-else
-  fprintf('Error: You must provide a row or column vector for the starting point.\n');
-  return
-end
-
-[mi,n0]  =  size(A);
+% Get user-defined functions.
 nonlcon =  @dummyCon;
-
 if (ischar(userobj))
   myobj = str2func(userobj);
 else
   myobj = userobj;
 end
+F = myobj(x0);
+if length(F) == 0,
+  error('Error: userobj must return the objective function.');
+end
+
 
 if     nargin == 4,
-  me       = 0;
-  nli      = 0;
-  nle      = 0;
-  Aeq      = [];
-  beq      = [];
-  xlow     = [];
-  xupp     = [];
+  Aeq  = [];  beq  = [];
+  xlow = [];  xupp = [];
+  c    = [];  ceq  = [];
 
 elseif nargin == 6,
-  Aeq      = varargin{1};
-  beq      = varargin{2};
-
-  [me,n0]  = size(Aeq);
-  nli      = 0;
-  nle      = 0;
-  xlow     = [];
-  xupp     = [];
+  Aeq  = varargin{1};
+  beq  = varargin{2};
+  xlow = [];  xupp = [];
+  c    = [];  ceq  = [];
 
 elseif nargin == 8,
   Aeq      = varargin{1};
   beq      = varargin{2};
   xlow     = varargin{3};
   xupp     = varargin{4};
-
-  [me,n0]  = size(Aeq);
-  nli      = 0;
-  nle      = 0;
+  c    = [];  ceq  = [];
 
 elseif nargin == 9,
   Aeq      = varargin{1};
@@ -80,17 +64,45 @@ elseif nargin == 9,
     nonlcon = nonlconU;
   end
 
-  [me,n0]  = size(Aeq);
   [c,ceq]  = feval(nonlcon,x0);
-  nli      = size(c,1);
-  nle      = size(ceq,1);
 
 else
   error('Wrong number of input arguments')
 end
 
-nCon = 1 + nli + nle + mi + me;   % number of constraints (size of F(x))
+% Check inputs
+[mi,n0] =  size(A);
+if ( ~isempty(A) && n0 ~= n ),
+  error('Error: A has incorrect column dimension.');
+end
 
+b = colvec(b,'b',1,mi);
+if isempty(b) && ~isempty(A),
+  error('Error: b is empty, but A is not.');
+end
+if ~isempty(b) && isempty(A),
+  error('Error: b is not empty, but A is.');
+end
+
+[me,n0] =  size(Aeq);
+if ( ~isempty(Aeq) && n0 ~= n ),
+  error('Error: Aeq has incorrect column dimension.');
+end
+
+beq = colvec(beq,'beq',1,me);
+if isempty(beq) && ~isempty(Aeq),
+  error('Error: beq is empty, but Aeq is not.');
+end
+if ~isempty(beq) && isempty(Aeq),
+  error('Error: beq is not empty, but Aeq is.');
+end
+
+nli = length(c);
+nle = length(ceq);
+
+
+% Set total number of constraints (size of F(x)).
+nCon = 1 + nli + nle + mi + me;
 
 % snoptA problem format:
 %    minimize    F_obj (x)
@@ -106,6 +118,21 @@ nCon = 1 + nli + nle + mi + me;   % number of constraints (size of F(x))
 
 [iAfun,jAvar,Aij] = find( [ zeros(1+nli+nle,n); A; Aeq ]);
 [iGfun,jGvar,Gij] = find( [ ones(1+nli+nle,n); zeros(mi+me,n) ]);
+
+iAfun   = colvec(iAfun,'iAfun',1,0);
+jAvar   = colvec(jAvar,'jAvar',1,0);
+Aij     = colvec(Aij,'Aij',1,0);
+if length(Aij) ~= length(iAfun) || ...
+      length(Aij) ~= length(jAvar) || ...
+      length(iAfun) ~= length(jAvar),
+  error('Error: A, iAfun, jAvar must have the same length.');
+end
+
+iGfun   = colvec(iGfun,'iGfun',1,0);
+jGvar   = colvec(jGvar,'jGvar',1,0);
+if length(iGfun) ~= length(jGvar),
+  error('Error: iGfun and jGvar must have the same length.');
+end
 
 xmul    =  zeros(n,1);
 xstate  =  zeros(n,1);

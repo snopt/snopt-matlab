@@ -70,6 +70,15 @@ end
 [m,n]                = size(A);
 [neA,indA,locA,valA] = crd2spr(A);
 
+x0 = colvec(x0,'x0',1,n);
+xl = colvec(xl,'xl',1,n);
+xu = colvec(xu,'xu',1,n);
+
+al = colvec(al,'al',1,m);
+au = colvec(au,'au',1,m);
+
+c  = colvec(c,'c',1,0);
+
 [x,Obj,INFO,piA,y] = sqoptmex( solveopt, name, m, n, userHx, c, x0, xl, xu, ...
 			       neA, indA, locA, valA, al, au );
 

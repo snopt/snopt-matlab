@@ -121,7 +121,10 @@ function [x,F,inform,xmul,Fmul] = snopt( x, xlow, xupp, xmul, xstate,...
 %      ordering of G may not necessarily correspond to (iGfun,jGvar)
 %      computed by snJac().
 
-n      = length(x);
+% Check for starting point x.
+x = colvec(x,'x0',0,0);
+n = length(x);
+
 ObjAdd = 0;
 ObjRow = 1;
 
@@ -130,10 +133,20 @@ if (ischar(userfun))
 else
   userFG = userfun;
 end
-
 F0 = userFG(x);
 nF = length(F0);
 
+
+% Check inputs.
+xlow   = colvec(xlow,'xlow',1,n);
+xupp   = colvec(xupp,'xupp',1,n);
+xmul   = colvec(xmul,'xmul',1,n);
+xstate = colvec(xstate,'xstate',1,n);
+
+Flow   = colvec(Flow,'xlow',1,nF);
+Fupp   = colvec(Fupp,'xupp',1,nF);
+Fmul   = colvec(Fmul,'xmul',1,nF);
+Fstate = colvec(Fstate,'xstate',1,nF);
 
 if nargin == 10,
 
@@ -142,7 +155,8 @@ if nargin == 10,
   % Call snJac to estimate the pattern of nonzeros for the Jacobian.
 
   [A,iAfun,jAvar,iGfun,jGvar] = snJac(userFG,x,xlow,xupp,nF);
-elseif nargin == 12
+
+elseif nargin == 12,
 
   % Calling sequence 2
   % Derivatives are estimated by differences.
@@ -151,7 +165,8 @@ elseif nargin == 12
   [A,iAfun,jAvar,iGfun,jGvar] = snJac(userFG,x,xlow,xupp,nF);
   ObjAdd = varargin{1};
   ObjRow = varargin{2};
-elseif nargin == 15
+
+elseif nargin == 15,
 
   % Calling sequence 3
   % The user is providing derivatives.
@@ -161,7 +176,8 @@ elseif nargin == 15
   jAvar  = varargin{3};
   iGfun  = varargin{4};
   jGvar  = varargin{5};
-elseif ( nargin == 17 )
+
+elseif nargin == 17,
 
   % Calling sequence 4
   % The user is providing derivatives.
@@ -173,6 +189,22 @@ elseif ( nargin == 17 )
   jAvar  = varargin{5};
   iGfun  = varargin{6};
   jGvar  = varargin{7};
+end
+
+A     = colvec(A,'A',1,0);
+iAfun = colvec(iAfun,'iAfun',1,0);
+jAvar = colvec(jAvar,'jAvar',1,0);
+if length(A) ~= length(iAfun) || ...
+      length(A) ~= length(jAvar) || ...
+      length(iAfun) ~= length(jAvar),
+  error('Error: A, iAfun, jAvar must have the same length.');
+end
+
+
+iGfun = colvec(iGfun,'iGfun',1,0);
+jGvar = colvec(jGvar,'jGvar',1,0);
+if length(iGfun) ~= length(jGvar),
+  error('Error: iGfun and jGvar must have the same length.');
 end
 
 solveopt = 1;
