@@ -38,6 +38,7 @@ subroutine mexFunction(nlhs, plhs, nrhs, prhs)
   !
   ! 13 Dec 2013: Current version.
   ! 01 May 2015: Added ability to modify initial amount of workspace
+  ! 09 Nov 2015: Added states, iteration counts as output
   !=====================================================================
   ! Matlab
   mwPointer        :: mxGetN, mxGetPr
@@ -485,6 +486,16 @@ subroutine sqmxSolve (nlhs, plhs, nrhs, prhs)
      call mxCopyReal8ToPtr(rc(1:n), mxGetPr(plhs(5)), n)
   end if
 
+  ! States
+  if ( nlhs > 5 ) then
+     plhs(6) = mxCreateDoubleMatrix (n+m, 1, 0)
+     call mxCopyReal8ToPtr(real(hs,8), mxGetPr(plhs(6)), n+m)
+  end if
+
+  ! Number of iterations
+  rinfo = iw(421)
+  if (nlhs > 6) plhs(7) = mxCreateDoubleScalar(rinfo)
+
 
   ! Deallocate memory
   if (HxHandle /= 0) call mxDestroyArray(HxHandle)
@@ -687,6 +698,8 @@ subroutine matlabHx (nnH, x, Hx, Status, &
   call mxCopyPtrToReal8(mxGetPr(plhs(1)), Hx, nnH)
 
   ! Destroy arrays
+  call mxDestroyArray(plhs(1))
+
   call mxDestroyArray(prhs(1))
   call mxDestroyArray(prhs(2))
 

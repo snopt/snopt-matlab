@@ -39,6 +39,7 @@ subroutine mexFunction(nlhs, plhs, nrhs, prhs)
   !
   ! 18 Sep 2013: Current version.
   ! 01 May 2015: Added ability to modify initial amount of workspace
+  ! 09 Nov 2015: Added states, iteration counts as output
   !=====================================================================
   ! Matlab
   mwPointer        :: mxGetN, mxGetPr
@@ -535,6 +536,25 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
      call mxCopyReal8ToPtr(Fmul, mxGetPr(plhs(5)), nF)
   end if
 
+  ! State variables
+  if ( nlhs > 5 ) then
+     plhs(6) = mxCreateDoubleMatrix(n,1,0)
+     call mxCopyReal8ToPtr(real(xstate,8), mxGetPr(plhs(6)),n)
+  end if
+
+  ! State variables
+  if ( nlhs > 6 ) then
+     plhs(7) = mxCreateDoubleMatrix(nF,1,0)
+     call mxCopyReal8ToPtr(real(Fstate,8), mxGetPr(plhs(7)),nF)
+  end if
+
+  ! Number of total iterations, major itns
+  rinfo = iw(421)
+  if (nlhs > 7) plhs(8) = mxCreateDoubleScalar(rinfo)
+
+  rinfo = iw(422)
+  if (nlhs > 8) plhs(9) = mxCreateDoubleScalar(rinfo)
+
 
   ! Deallocate memory
   if (fgHandle  /= 0) call mxDestroyArray(fgHandle)
@@ -1003,6 +1023,7 @@ subroutine matlabFG(Status, n, x, needF, nF, F, needG, lenG, G, &
 
 
            ! Destroy array
+           call mxDestroyArray(plhs1(1))
            call mxDestroyArray(prhs1(1))
            call mxDestroyArray(prhs1(2))
            call mxDestroyArray(prhs1(3))
@@ -1026,6 +1047,9 @@ subroutine matlabFG(Status, n, x, needF, nF, F, needG, lenG, G, &
 
 
   ! Destroy arrays
+  call mxDestroyArray(plhs(1))
+  call mxDestroyArray(plhs(2))
+
   call mxDestroyArray(prhs(1))
   call mxDestroyArray(prhs(2))
   call mxDestroyArray(prhs(3))
