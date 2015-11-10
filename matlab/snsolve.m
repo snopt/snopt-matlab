@@ -1,10 +1,28 @@
-function [x,fval,exitflag,lambda] = snsolve(userobj,x0,A,b,varargin)
+function [x,fval,exitflag,lambda,states] = snsolve(userobj,x0,A,b,varargin)
 
 % A wrapper for snopt to make it look like fmincon.
-%   [x,fval,exitflag,lambda] = snsolve(myobj,x0,A,b)
-%   [x,fval,exitflag,lambda] = snsolve(myobj,x0,A,b,Aeq,beq)
-%   [x,fval,exitflag,lambda] = snsolve(myobj,x0,A,b,Aeq,beq,xlow,xupp)
-%   [x,fval,exitflag,lambda] = snsolve(myobj,x0,A,b,Aeq,beq,xlow,xupp,nonlcon)
+%   [x,fval,exitflag,lambda,states] = snsolve(myobj,x0,A,b)
+%   [x,fval,exitflag,lambda,states] = snsolve(myobj,x0,A,b,Aeq,beq)
+%   [x,fval,exitflag,lambda,states] = snsolve(myobj,x0,A,b,Aeq,beq,xlow,xupp)
+%   [x,fval,exitflag,lambda,states] = snsolve(myobj,x0,A,b,Aeq,beq,xlow,xupp,nonlcon)
+%
+% Output:
+%   x                  solution
+%
+%   fval               final objective value at x
+%
+%   exitflag           exit condition from SNOPT
+%
+%   lambda.lower       final multipliers for lower bounds
+%   lambda.upper       final multipliers for upper bounds
+%   lambda.ineqnonlin  final multipliers for nonlinear inequalities
+%   lambda.eqnonlin    final multipliers for nonlinear equalities
+%   lambda.ineqlin     final multipliers for linear inequalities
+%   lambda.eqlin       final multipliers for linear equalities
+%
+%   states.x           final state of variables
+%   states.F           final state of slack (constraint) variables
+%
 %
 % snsolve and fmincon assume problems are of the form:
 %    minimize    f(x)
@@ -14,7 +32,9 @@ function [x,fval,exitflag,lambda] = snsolve(userobj,x0,A,b,varargin)
 %                A_eq x  = b_eq,
 %                xlow   <= x <= xupp.
 %
-% 26 November 2012.
+% First created: 26 November 2012.
+% Last updated:   7 October 2015
+%
 
 % Check for starting point x0.
 x0 = colvec(x0,'x0',0,0);
@@ -146,13 +166,13 @@ Fupp    = [  inf; zeros(nli,1); zeros(nle,1); b; beq ];
 
 % Solve the problem!
 solveopt = 1;
-[x,F,exitflag,xmul,Fmul] = snoptmex( solveopt, x0, ...
-				     xlow, xupp, xmul, xstate, ...
-				     Flow, Fupp, Fmul, Fstate, ...
-				     ObjAdd, ObjRow, ...
-				     Aij, iAfun, jAvar, ...
-				     iGfun, jGvar, ...
-				     myobj, nonlcon );
+[x,F,exitflag,xmul,Fmul,xstate,Fstate,itn,mjritn] = snoptmex( solveopt, x0, ...
+						  xlow, xupp, xmul, xstate, ...
+						  Flow, Fupp, Fmul, Fstate, ...
+						  ObjAdd, ObjRow, ...
+						  Aij, iAfun, jAvar, ...
+						  iGfun, jGvar, ...
+						  myobj, nonlcon );
 
 fval              = feval(myobj,x);
 lambda.lower      = xmul;
@@ -161,6 +181,13 @@ lambda.ineqnonlin = Fmul(2:nli+1);
 lambda.eqnonlin   = Fmul(nli+2:nli+nle+1);
 lambda.ineqlin    = Fmul(nli+nle+2:nli+nle+mi+1);
 lambda.eqlin      = Fmul(nli+nle+mi+2:nCon);
+
+states.x          = xstate;
+states.F          = Fstate;
+
+output.info       = exitflag;
+output.iterations = itn;
+output.majoritns  = mjritn;
 
 
 function [c,ceq] = dummyCon(x)

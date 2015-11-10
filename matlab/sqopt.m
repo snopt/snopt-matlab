@@ -1,5 +1,5 @@
-function [x,Obj,INFO,lambda] = sqopt( name, Hx, c, x0, xl, xu, A, al, au )
-% [x,Obj,INFO,pi,rc] = sqopt ( name, Hx, c, x0, xl, xu, A, al, au );
+function [x,Obj,INFO,lambda,states,output] = sqopt( name, Hx, c, x0, xl, xu, A, al, au )
+% [x,Obj,INFO,lambda,states,output] = sqopt ( name, Hx, c, x0, xl, xu, A, al, au );
 %
 % This function solves the quadratic optimization problem:
 %   minimize:
@@ -54,6 +54,12 @@ function [x,Obj,INFO,lambda] = sqopt( name, Hx, c, x0, xl, xu, A, al, au )
 %                    lambda.ub      are the upper bound multipliers
 %                    lambda.linear  are the linear constraint multipliers
 %
+%  states            are the final state variables:
+%                    state.x for the variables
+%                    state.s for the slacks (constraint) variables
+%
+%  output            output.iterations  == total number of iterations taken
+%                    output.info        == final exit code from SQOPT
 
 solveopt = 1;
 
@@ -79,8 +85,8 @@ au = colvec(au,'au',1,m);
 
 c  = colvec(c,'c',1,0);
 
-[x,Obj,INFO,piA,y] = sqoptmex( solveopt, name, m, n, userHx, c, x0, xl, xu, ...
-			       neA, indA, locA, valA, al, au );
+[x,Obj,INFO,piA,y,hs,itn] = sqoptmex( solveopt, name, m, n, userHx, c, x0, xl, xu, ...
+				      neA, indA, locA, valA, al, au );
 
 if ( nargout >= 4 )
   n    = size(x);
@@ -89,4 +95,14 @@ if ( nargout >= 4 )
   lambda.lb         = max(y,zero);
   lambda.ub         = min(y,zero);
   lambda.linear     = piA;
+end
+
+if ( nargout >= 5 )
+  states.x = hs(1:n);
+  states.s = hs(n+1:n+m);
+end
+
+if ( nargout >= 6 )
+  output.info       = INFO;
+  output.iterations = itn;
 end
