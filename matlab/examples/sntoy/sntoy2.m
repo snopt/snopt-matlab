@@ -10,6 +10,7 @@
 %                     x(1) >= 0,                       x(4) >= 0.
 %
 
+snscreen on;
 snprint('sntoy2.out');  % By default, screen output is on;
 sntoy2.spc = which('sntoy2.spc');
 snspec (sntoy2.spc);
