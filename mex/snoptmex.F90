@@ -210,18 +210,19 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
   !                  ObjRow, A, iAfun, jAvar, iGfun, jGvar, userfun)
   !---------------------------------------------------------------------
   ! Matlab
-  mwPointer        :: mxDuplicateArray, mxGetM, mxGetPr, &
+  mwPointer        :: mxDuplicateArray, mxGetM, mxGetN, mxGetPr, &
                       mxCreateDoubleMatrix, mxCreateDoubleScalar
-  integer          :: mxIsClass, mxIsEmpty
+  integer          :: mxIsChar, mxIsClass, mxIsEmpty, mxIsNumeric
   double precision :: mxGetScalar
 
   ! SNOPT
   character*8      :: probName
-  integer          :: info, Errors
+  integer          :: info, Errors, tmp
   integer          :: Start, ObjRow, n, nF, lenA, lenG, neA, &
                       nxname, nFname, mincw, miniw, minrw, nInf, nS
   double precision :: rinfo, ObjAdd, sInf
-  external         :: snMemA, snoptA, matlabFG
+  external         :: snMemA, snKerA, matlabFG, matlabSTOP
+  external         :: snLog, snLog2, sqLog
 
   double precision, parameter   :: infBnd = 1.0d+20
 
@@ -234,7 +235,7 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
 
 
   ! Check number of input and output arguments.
-  if (nrhs /= 18 .and. nrhs /= 19) call mexErrMsgTxt('Wrong number of input arguments')
+  if (nrhs /= 20 .and. nrhs /= 21) call mexErrMsgTxt('Wrong number of input arguments')
 
 
   !---------------------------------------------------------------------
@@ -403,16 +404,35 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
 
 
   !---------------------------------------------------------------------
-  ! Set userfun function
+  ! Set userfun, problem name, and snSTOP functions
   !---------------------------------------------------------------------
-  if (nrhs == 18) then
+  probName = ''
+  if (nrhs == 20) then
+     ! snopt.m
      info = mxIsClass(prhs(18), 'function_handle')
      if (info /= 1) call mexErrMsgTxt('Wrong input type for userfg')
      fgHandle  = mxDuplicateArray(prhs(18))
      objHandle = 0
      conHandle = 0
 
+     ! Problem name
+     info = mxIsChar(prhs(19))
+     if (info /= 1) call mexErrMsgTxt('Wrong input type for problem name')
+     tmp = mxGetN(prhs(19))
+     call mxGetString(prhs(19), probName, min(8,tmp))
+
+     ! Check for STOP function
+     stopHandle = 0
+     info = mxIsNumeric(prhs(20))
+     if ( info /= 1 ) then
+        ! Check if STOP function is actually a function
+        info = mxIsClass(prhs(20), 'function_handle')
+        if (info /= 1) call mexErrMsgTxt('Wrong input type for snSTOP')
+        stopHandle = mxDuplicateARray(prhs(20))
+     end if
+
   else
+     ! snsolve.m
      fgHandle  = 0
 
      info = mxIsClass(prhs(18), 'function_handle')
@@ -422,6 +442,23 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
      info = mxIsClass(prhs(19), 'function_handle')
      if (info /= 1) call mexErrMsgTxt('Wrong input type for nonlcon')
      conHandle = mxDuplicateArray(prhs(19))
+
+     ! Problem name
+     info = mxIsChar(prhs(20))
+     if (info /= 1) call mexErrMsgTxt('Wrong input type for problem name')
+     tmp = mxGetN(prhs(20))
+     call mxGetString(prhs(20), probName, min(8,tmp))
+
+     ! Check for STOP function
+     stopHandle = 0
+     info = mxIsNumeric(prhs(21))
+     if ( info /= 1 ) then
+        ! Check if STOP function is actually a function
+        info = mxIsClass(prhs(21), 'function_handle')
+        if (info /= 1) call mexErrMsgTxt('Wrong input type for snSTOP')
+        stopHandle = mxDuplicateARray(prhs(21))
+     end if
+
   end if
 
   !---------------------------------------------------------------------
@@ -485,18 +522,19 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
   ! Solve the problem
   !---------------------------------------------------------------------
   Start    = 0  ! cold start
-  probName = 'matlabMx'
 
-  call snoptA &
-       (Start, nF, n, nxname, nFname, ObjAdd, ObjRow, &
-         probName, matlabFG, &
-         iAfun, jAvar, lenA, neA, A, &
-         iGfun, jGvar, lenG, neG, &
-         xlow, xupp, xname, Flow, Fupp, Fname, &
-         x, xstate, xmul, F, Fstate, Fmul, &
-         INFO, mincw, miniw, minrw, nS, nInf, sInf, &
-         cw, lencw, iw, leniw, rw, lenrw, &
-         cw, lencw, iw, leniw, rw, lenrw)
+  call snKerA                                        &
+       ( Start, nF, n, nxname, nFname,               &
+         objAdd, objRow, probName,                   &
+         matlabFG, snLog, snLog2, sqLog, matlabSTOP, &
+         iAfun, jAvar, lenA, neA, A,                 &
+         iGfun, jGvar, lenG, neG,                    &
+         xlow, xupp, xname, Flow, Fupp, Fname,       &
+         x, xstate, xmul, F, Fstate, Fmul,           &
+         INFO, mincw, miniw, minrw,                  &
+         nS, nInf, sInf,                             &
+         cw, lencw, iw, leniw, rw, lenrw,            &
+         cw, lencw, iw, leniw, rw, lenrw )
 
   if (INFO == 82 .or. INFO == 83 .or. INFO == 84) then
      memCall = .false.
@@ -556,14 +594,18 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
   if (nlhs > 8) plhs(9) = mxCreateDoubleScalar(rinfo)
 
 
-  ! Deallocate memory
-  if (fgHandle  /= 0) call mxDestroyArray(fgHandle)
-  if (objHandle /= 0) call mxDestroyArray(objHandle)
-  if (conHandle /= 0) call mxDestroyArray(conHandle)
 
-  fgHandle  = 0
-  objHandle = 0
-  conHandle = 0
+
+  ! Deallocate memory
+  if (fgHandle    /= 0) call mxDestroyArray(fgHandle)
+  if (objHandle   /= 0) call mxDestroyArray(objHandle)
+  if (conHandle   /= 0) call mxDestroyArray(conHandle)
+  if (stopHandle  /= 0) call mxDestroyArray(stopHandle)
+
+  fgHandle   = 0
+  objHandle  = 0
+  conHandle  = 0
+  stopHandle = 0
 
   if (allocated(rtmp))   deallocate(rtmp)
   if (allocated(x))      deallocate(x)
@@ -1058,5 +1100,189 @@ subroutine matlabFG(Status, n, x, needF, nF, F, needG, lenG, G, &
   if (nrhs >= 6) call mxDestroyArray(prhs(6))
 
 end subroutine matlabFG
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+subroutine matlabSTOP &
+     ( iAbort,                                           &
+       KTcond, mjrPrtlvl, minimize,                      &
+       m, maxS, n, nb, nnCon0, nnCon, nnObj0, nnObj, nS, &
+       itn, nMajor, nMinor, nSwap,                       &
+       condZHZ, iObj, scaleObj, objAdd,                  &
+       fObj, fMerit, penParm, step,                      &
+       primalInf, dualInf, maxVi, maxViRel, hs,          &
+       neJ, nlocJ, locJ, indJ, Jcol, negCon,             &
+       scales, bl, bu, Fx, fCon, gCon, gObj,             &
+       yCon, pi, rc, rg, x,                              &
+       cu, lencu, iu, leniu, ru, lenru,                  &
+       cw, lencw, iw, leniw, rw, lenrw )
+
+  use mxsnWork, only : stopHandle
+
+  implicit none
+
+  logical, intent(in) :: KTcond(2)
+  integer, intent(in) :: iObj, itn,                                   &
+                         lencu, lencw, leniu, leniw, lenru, lenrw,    &
+                         mjrPrtlvl, minimize, m, maxS, n, nb, neJ,    &
+                         negCon, nlocJ, nnCon0, nnCon, nnObj0, nnObj, &
+                         nMajor, nMinor, nS, nSwap,                   &
+                         hs(nb), locJ(nlocJ), indJ(neJ),              &
+                         iw(leniw)
+  double precision, intent(in) ::                                     &
+       condZHZ, scaleObj, objAdd, fObj, fMerit, penParm(4),           &
+       maxViRel, maxVi, step, primalInf, dualInf,                     &
+       scales(nb), bl(nb), bu(nb), Fx(nnCon0),                        &
+       fCon(nnCon0), gCon(negCon), gObj(nnObj0), Jcol(neJ), pi(m),    &
+       rc(nb), rg(maxS), yCon(nnCon0), x(nb), rw(lenrw)
+  character(8), intent(in) :: cw(lencw)*8
+
+  integer,          intent(inout) :: iu(leniu)
+  double precision, intent(inout) :: ru(lenru)
+  character(8),     intent(inout) :: cu(lencu)
+
+  integer,          intent(out) :: iAbort
+
+  !===================================================================
+  ! snSTOP is called every major iteration.
+  ! If iAbort > 0 on exit, the run is terminated.
+  ! By specifying a custom version of snSTOP, the user can arrange for
+  ! snopt to be terminated at any given major iteration.
+  !
+  ! 14 Oct 2004: First version of   snSTOP.
+  ! 29 Aug 2007: Parameter list extended.
+  ! 18 Dec 2015: New argument fObj.
+  ! 22 Dec 2015: Matlab version
+  !===================================================================
+  integer*4, parameter :: nlhs = 1, nrhs = 22
+
+  integer          :: i, iN, j, lkxN, nF, ObjRow, nkx
+  double precision :: rtmp
+  mwPointer        :: prhs(nrhs), plhs(nlhs)
+  mwPointer        :: mxGetPr, mxDuplicateArray, mxCreateDoubleMatrix, &
+                      mxCreateDoubleScalar
+  double precision :: mxGetScalar
+
+  integer,          allocatable :: Fstate(:)
+  double precision, allocatable :: F(:), Fmul(:), Flow(:), Fupp(:)
+
+  iAbort = 0
+
+  if ( stopHandle /= 0 ) then
+     ! iAbort = snSTOP(...)
+     prhs(1)  = mxDuplicateArray(stopHandle)
+
+     ! Set up scalars
+     rtmp     = itn
+     prhs(2)  = mxCreateDoubleScalar(rtmp)
+
+     rtmp     = nMajor
+     prhs(3)  = mxCreateDoubleScalar(rtmp)
+
+     rtmp     = nMinor
+     prhs(4)  = mxCreateDoubleScalar(rtmp)
+
+     prhs(5)  = mxCreateDoubleScalar(condZHZ)
+     prhs(6)  = mxCreateDoubleScalar(fObj)
+     prhs(7)  = mxCreateDoubleScalar(fMerit)
+     prhs(8)  = mxCreateDoubleScalar(step)
+     prhs(9)  = mxCreateDoubleScalar(primalInf)
+     prhs(10) = mxCreateDoubleScalar(dualInf)
+     prhs(11) = mxCreateDoubleScalar(maxVi)
+     prhs(12) = mxCreateDoubleScalar(maxViRel)
+
+     ! x, xlow, xupp, xmul, xstate
+     prhs(13) = mxCreateDoubleMatrix(n,1,0)
+     call mxCopyReal8ToPtr(x, mxGetPr(prhs(13)),n)
+
+     prhs(14) = mxCreateDoubleMatrix(n,1,0)
+     call mxCopyReal8ToPtr(bl, mxGetPr(prhs(14)),n)
+
+     prhs(15) = mxCreateDoubleMatrix(n,1,0)
+     call mxCopyReal8ToPtr(bu, mxGetPr(prhs(15)),n)
+
+     prhs(16) = mxCreateDoubleMatrix(n,1,0)
+     call mxCopyReal8ToPtr(rc, mxGetPr(prhs(16)),n)
+
+     prhs(17) = mxCreateDoubleMatrix(n,1,0)
+     call mxCopyReal8ToPtr(real(hs,8), mxGetPr(prhs(17)),n)
+
+     ! F, Flow, Fupp, Fmul, Fstate,...
+     nF     = iw(248)
+     ObjRow = iw(103)
+     nkx    = iw(247)
+     lkxN   = iw(252) ! jN = kxN(j ) => col j of Jcol is variable jN
+
+     allocate( F(nF), Fstate(nF), Fmul(nF), Flow(nF), Fupp(nF) )
+     do j  = n+1, nkx
+        i  = j - n
+        iN = iw(lkxN-1+j)
+         if (iN == ObjRow) then
+            if (iObj > 0) then
+               F(ObjRow) = fObj + x(n+iObj)
+            else
+               F(ObjRow) = fObj
+            end if
+         else
+            if (i <= nnCon) then
+               F(iN) = Fx(i)
+            else
+               F(iN) =  x(j)
+            end if
+            Fstate(iN) = hs(j)
+            Fmul(iN)   = rc(j)
+            Flow(iN)   = bl(j)
+            Fupp(iN)   = bu(j)
+         end if
+      end do
+
+     prhs(18) = mxCreateDoubleMatrix(nF,1,0)
+     call mxCopyReal8ToPtr(F, mxGetPr(prhs(18)), nF)
+
+     prhs(19) = mxCreateDoubleMatrix(nF,1,0)
+     call mxCopyReal8ToPtr(Flow, mxGetPr(prhs(19)), nF)
+
+     prhs(20) = mxCreateDoubleMatrix(nF,1,0)
+     call mxCopyReal8ToPtr(Fupp, mxGetPr(prhs(20)), nF)
+
+     prhs(21) = mxCreateDoubleMatrix(nF,1,0)
+     call mxCopyReal8ToPtr(Fmul, mxGetPr(prhs(21)), nF)
+
+     prhs(22) = mxCreateDoubleMatrix(nF,1,0)
+     call mxCopyReal8ToPtr(real(Fstate,8), mxGetPr(prhs(22)), nF)
+
+     deallocate( F, Flow, Fupp, Fmul, Fstate )
+
+     call mexCallMatlab(nlhs, plhs, nrhs, prhs, 'feval')
+
+     iAbort = mxGetScalar(plhs(1))
+
+     call mxDestroyArray(plhs(1))
+
+     call mxDestroyArray(prhs(1))
+     call mxDestroyArray(prhs(2))
+     call mxDestroyArray(prhs(3))
+     call mxDestroyArray(prhs(4))
+     call mxDestroyArray(prhs(5))
+     call mxDestroyArray(prhs(6))
+     call mxDestroyArray(prhs(7))
+     call mxDestroyArray(prhs(8))
+     call mxDestroyArray(prhs(9))
+     call mxDestroyArray(prhs(10))
+     call mxDestroyArray(prhs(11))
+     call mxDestroyArray(prhs(12))
+     call mxDestroyArray(prhs(13))
+     call mxDestroyArray(prhs(14))
+     call mxDestroyArray(prhs(15))
+     call mxDestroyArray(prhs(16))
+     call mxDestroyArray(prhs(17))
+     call mxDestroyArray(prhs(18))
+     call mxDestroyArray(prhs(19))
+     call mxDestroyArray(prhs(20))
+     call mxDestroyArray(prhs(21))
+     call mxDestroyArray(prhs(22))
+  end if
+
+end subroutine matlabSTOP
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

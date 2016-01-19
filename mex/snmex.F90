@@ -28,6 +28,7 @@ module mxsnWork
 
   mwPointer            :: fgHandle, HxHandle
   mwPointer            :: objHandle, conHandle ! for fmincon-style
+  mwPointer            :: stopHandle
 
   integer              :: neG
   double precision, allocatable :: riGfun(:), rjGvar(:)
