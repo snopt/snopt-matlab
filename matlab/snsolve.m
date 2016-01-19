@@ -5,6 +5,7 @@ function [x,fval,exitflag,lambda,states] = snsolve(userobj,x0,A,b,varargin)
 %   [x,fval,exitflag,lambda,states] = snsolve(myobj,x0,A,b,Aeq,beq)
 %   [x,fval,exitflag,lambda,states] = snsolve(myobj,x0,A,b,Aeq,beq,xlow,xupp)
 %   [x,fval,exitflag,lambda,states] = snsolve(myobj,x0,A,b,Aeq,beq,xlow,xupp,nonlcon)
+%   [x,fval,exitflag,lambda,states] = snsolve(myobj,x0,A,b,Aeq,beq,xlow,xupp,nonlcon,options)
 %
 % Output:
 %   x                  solution
@@ -52,7 +53,6 @@ if length(F) == 0,
   error('Error: userobj must return the objective function.');
 end
 
-
 if     nargin == 4,
   Aeq  = [];  beq  = [];
   xlow = [];  xupp = [];
@@ -71,14 +71,14 @@ elseif nargin == 8,
   xupp     = varargin{4};
   c    = [];  ceq  = [];
 
-elseif nargin == 9,
+elseif nargin == 9 || nargin == 10,
   Aeq      = varargin{1};
   beq      = varargin{2};
   xlow     = varargin{3};
   xupp     = varargin{4};
   nonlconU = varargin{5};
 
-  if (ischar(nonlconU))
+  if (ischar(nonlconU)),
     nonlcon = str2func(nonlconU);
   else
     nonlcon = nonlconU;
@@ -88,6 +88,30 @@ elseif nargin == 9,
 
 else
   error('Wrong number of input arguments')
+end
+
+% Options?
+probName = '';
+mlSTOP   = 0;
+
+if nargin == 10,
+  if isstruct(varargin{6}),
+    options = varargin{6};
+    if isfield(options,'name'),
+      probName = options.name;
+    end
+
+    if isfield(options,'stop'),
+      if (ischar(options.stop))
+	mlSTOP = str2func(options.stop);
+      else
+	mlSTOP = options.stop;
+      end
+    end
+
+  else
+    error('Options struct error');
+  end
 end
 
 % Check inputs
@@ -166,13 +190,14 @@ Fupp    = [  inf; zeros(nli,1); zeros(nle,1); b; beq ];
 
 % Solve the problem!
 solveopt = 1;
+
 [x,F,exitflag,xmul,Fmul,xstate,Fstate,itn,mjritn] = snoptmex( solveopt, x0, ...
 						  xlow, xupp, xmul, xstate, ...
 						  Flow, Fupp, Fmul, Fstate, ...
 						  ObjAdd, ObjRow, ...
 						  Aij, iAfun, jAvar, ...
 						  iGfun, jGvar, ...
-						  myobj, nonlcon );
+						  myobj, nonlcon, probName, mlSTOP );
 
 fval              = feval(myobj,x);
 lambda.lower      = xmul;

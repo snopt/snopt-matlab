@@ -40,6 +40,12 @@ function [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt( x, xlow, xupp, xmu
 %                                                 ObjAdd, ObjRow,
 %                                                 A, iAfun, jAvar, iGfun, jGvar )
 %
+% Calling sequence 5:
+%  [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt ( x, xlow, xupp, xmul, xstate,...
+%                                                 Flow, Fupp, Fmul, Fstate, userfun,...
+%                                                 ObjAdd, ObjRow,
+%                                                 A, iAfun, jAvar, iGfun jGvar, options )
+%
 % INPUT:
 %  x             is the initial guess for x.
 %
@@ -105,6 +111,12 @@ function [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt( x, xlow, xupp, xmu
 %
 % iGfun, jGvar   hold the indices of the nonlinear elements in the Jacobian
 %                of F.
+%
+% options        is a struct.
+%                options.name   is the problem name
+%                options.stop   is the "snSTOP" function called at every
+%                major iteration.
+%
 %
 % More IMPORTANT details:
 %   1) The indices (iAfun,jAvar) must be DISJOINT from (iGfun,jGvar).
@@ -177,9 +189,9 @@ elseif nargin == 15,
   iGfun  = varargin{4};
   jGvar  = varargin{5};
 
-elseif nargin == 17,
+elseif nargin == 17 || nargin == 18,
 
-  % Calling sequence 4
+  % Calling sequence 4 and 5
   % The user is providing derivatives.
 
   ObjAdd = varargin{1};
@@ -189,6 +201,33 @@ elseif nargin == 17,
   jAvar  = varargin{5};
   iGfun  = varargin{6};
   jGvar  = varargin{7};
+
+else
+  error('Wrong number of input arguments')
+end
+
+% Options?
+probName = '';
+mlSTOP   = 0;
+
+if nargin == 18,
+  if isstruct(varargin{8}),
+    options = varargin{8};
+    if isfield(options,'name'),
+      probName = options.name;
+    end
+
+    if isfield(options,'stop'),
+      if (ischar(options.stop))
+	mlSTOP = str2func(options.stop);
+      else
+	mlSTOP = options.stop;
+      end
+    end
+
+  else
+    error('Options struct error');
+  end
 end
 
 A     = colvec(A,'A',1,0);
@@ -212,7 +251,8 @@ solveopt = 1;
 						  xlow, xupp, xmul, xstate, ...
 						  Flow, Fupp, Fmul, Fstate, ...
 						  ObjAdd, ObjRow, A, iAfun, jAvar, ...
-						  iGfun, jGvar, userFG );
+						  iGfun, jGvar, userFG, probName, ...
+						  mlSTOP );
 output.info       = inform;
 output.iterations = itn;
 output.majors     = mjritn;
