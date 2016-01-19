@@ -1,4 +1,4 @@
-function [x,F,xmul,Fmul,INFO] = hs116()
+function hs116()
 % HS Problem 116 with explicit linear constraints.
 
 snprint('hs116.out');
@@ -12,13 +12,17 @@ snseti('Major Iteration limit', 250);
    Flow,Fupp,Fmul,Fstate, ...
  ObjAdd,ObjRow,A,iAfun,jAvar,iGfun,jGvar] = hs116data;
 
+options.name = 'hs116';
+
 [x,F,INFO,xmul,Fmul]= snopt( x, xlow, xupp, xmul, xstate,  ...
                              Flow, Fupp, Fmul, Fstate,     ...
                              @hs116userfun, ObjAdd, ObjRow, ...
-                             A, iAfun, jAvar, iGfun, jGvar );
+                             A, iAfun, jAvar, iGfun, jGvar, ...
+			     options );
 
 snprint off; % Closes the file and empties the print buffer
 snend;
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [x,xlow,xupp,xmul,xstate, ...
