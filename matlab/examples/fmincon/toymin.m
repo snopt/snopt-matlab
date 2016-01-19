@@ -1,4 +1,4 @@
-function [x,F,INFO]=toymin
+function [x,fval,INFO]=toymin
 % Mimics sntoyA.f in $SNOPT/examples
 % Example of the 'fmincon'-style call to SNOPT.
 %
@@ -23,16 +23,31 @@ snseti ('Major Iteration limit', 250);
 x0     = ones(4,1);
 A      = [ 0 -4 -2 0];
 b      = [ 0 ];
-
 Aeq    = [];
 beq    = [];
 
 lb     = [  0,-Inf,-Inf,   0]';
 ub     = Inf*ones(4,1);
 
+options.name = 'toyprob';
+options.stop = @toySTOP;
 
-[x,F,INFO,lambda] = snsolve( @toyObj, x0, A, b, Aeq, beq, lb, ub, @toyCon);
+[x,fval,INFO,lambda] = snsolve( @toyObj, x0, A, b, Aeq, beq, lb, ub, @toyCon, options);
 
 snprint off;
 snend;
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function [iAbort] = toySTOP(itn, nMajor, nMinor, condZHZ, obj, merit, step, ...
+			      primalInf, dualInf, maxViol, maxViolRel, ...
+			      x, xlow, xupp, xmul, xstate, ...
+			      F, Flow, Fupp, Fmul, Fstate)
+
+% Called every major iteration
+% Use iAbort to stop SNOPT (if iAbort == 0, continue; else stop)
+
+iAbort = 0
+
 
