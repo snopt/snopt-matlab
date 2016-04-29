@@ -184,7 +184,7 @@ Fmul    =  zeros(nCon,1);
 Fstate  =  zeros(nCon,1);
 ObjAdd  =  0;
 ObjRow  =  1;
-Flow    = [ -inf; -inf*ones(nli,1); zeros(nle,1); -inf*ones(mi,1); zeros(me,1) ];
+Flow    = [ -inf; -inf*ones(nli,1); zeros(nle,1); -inf*ones(mi,1); beq ];
 Fupp    = [  inf; zeros(nli,1); zeros(nle,1); b; beq ];
 
 
