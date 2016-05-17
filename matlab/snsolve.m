@@ -33,9 +33,6 @@ function [x,fval,exitflag,lambda,states] = snsolve(userobj,x0,A,b,varargin)
 %                A_eq x  = b_eq,
 %                xlow   <= x <= xupp.
 %
-% First created: 26 November 2012.
-% Last updated:   7 October 2015
-%
 
 % Check for starting point x0.
 x0 = colvec(x0,'x0',0,0);
