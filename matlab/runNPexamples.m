@@ -47,6 +47,6 @@ snset ('Defaults');
 fprintf('\n============================================================= ');
 fprintf('\nhs116: snopt solves hs116 ... ');
 snset ('Defaults');
-[x,xmul,F,Fmul,info] = hs116;
+[x,F,info] = hs116;
 
 snscreen off
