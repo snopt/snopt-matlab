@@ -8,4 +8,5 @@ addpath([pwd,'/examples/hsmain'], '-end');
 addpath([pwd,'/examples/hs76'  ], '-end');
 addpath([pwd,'/examples/fmincon'], '-end');
 addpath([pwd,'/examples/hs116'  ], '-end');
+addpath([pwd,'/examples/spring' ], '-end');
 
