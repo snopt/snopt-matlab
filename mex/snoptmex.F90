@@ -971,7 +971,7 @@ subroutine matlabFG(Status, n, x, needF, nF, F, needG, lenG, G, &
 
   mwIndex          :: j
 
-  mwPointer        :: prhs(6), plhs(2), prhs1(3), plhs1(1)
+  mwPointer        :: prhs(8), plhs(2), prhs1(3), plhs1(1)
   mwPointer        :: mxCreateDoubleMatrix, mxCreateDoubleScalar, &
                       mxDuplicateArray, mxGetN, mxGetPr
   integer          :: mxIsNaN
@@ -979,7 +979,7 @@ subroutine matlabFG(Status, n, x, needF, nF, F, needG, lenG, G, &
   if (needF == 0 .and. needG == 0) return
 
   nlhs    = 2
-  nrhs    = 4
+  nrhs    = 6
 
   prhs(1) = mxCreateDoubleMatrix(n, 1, 0)
   call mxCopyReal8ToPtr(x, mxGetPr(prhs(1)), n)
@@ -990,20 +990,25 @@ subroutine matlabFG(Status, n, x, needF, nF, F, needG, lenG, G, &
   tmp = n
   prhs(4) = mxCreateDoubleScalar(tmp)
 
+  tmp = needF
+  prhs(5) = mxCreateDoubleScalar(tmp)
+
+  tmp = needG
+  prhs(6) = mxCreateDoubleScalar(tmp)
+
 
   if (fgHandle /= 0) then
      prhs(2) = mxDuplicateArray(fgHandle)
-
   else
      prhs(2) = mxCreateDoubleScalar(tmp)
 
      if (objHandle /= 0) then
-        nrhs = 5
-        prhs(5) = mxDuplicateArray(objHandle)
+        nrhs = 7
+        prhs(7) = mxDuplicateArray(objHandle)
 
         if (conHandle /= 0) then
-           nrhs = 6
-           prhs(6) = mxDuplicateArray(conHandle)
+           nrhs = 8
+           prhs(8) = mxDuplicateArray(conHandle)
         end if
      end if
   end if
