@@ -23,28 +23,25 @@ function [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt( x, xlow, xupp, xmu
 % problem information.
 %
 % Calling sequence 1:
-%  [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt ( x, xlow, xupp, xmul, xstate,...
-%                                                 Flow, Fupp, Fmul, Fstate, userfun )
+%  [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt ( x, xlow, xupp, xmul, xstate,
+%                                                 Flow, Fupp, Fmul, Fstate, userfun,
+%                                                 [options] )
 %
 % Calling sequence 2:
 %  [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt ( x, xlow, xupp, xmul, xstate,...
 %                                                 Flow, Fupp, Fmul, Fstate, userfun,...
-%                                                 ObjAdd, ObjRow )
+%                                                 ObjAdd, ObjRow, [options] )
 % Calling sequence 3:
 %  [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt ( x, xlow, xupp, xmul, xstate,...
 %                                                 Flow, Fupp, Fmul, Fstate, userfun,...
-%                                                 A, iAfun, jAvar, iGfun, jGvar )
+%                                                 A, iAfun, jAvar, iGfun,
+%                                                 jGvar, [options] )
 % Calling sequence 4:
 %  [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt ( x, xlow, xupp, xmul, xstate,...
 %                                                 Flow, Fupp, Fmul, Fstate, userfun,...
 %                                                 ObjAdd, ObjRow,
-%                                                 A, iAfun, jAvar, iGfun, jGvar )
-%
-% Calling sequence 5:
-%  [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt ( x, xlow, xupp, xmul, xstate,...
-%                                                 Flow, Fupp, Fmul, Fstate, userfun,...
-%                                                 ObjAdd, ObjRow,
-%                                                 A, iAfun, jAvar, iGfun jGvar, options )
+%                                                 A, iAfun, jAvar, iGfun,
+%                                                 jGvar, [options] )
 %
 % INPUT:
 %  x             is the initial guess for x.
@@ -148,6 +145,8 @@ end
 F0 = userFG(x);
 nF = length(F0);
 
+optionsLoc = 0;
+
 
 % Check inputs.
 xlow   = colvec(xlow,'xlow',1,n);
@@ -160,7 +159,8 @@ Fupp   = colvec(Fupp,'xupp',1,nF);
 Fmul   = colvec(Fmul,'xmul',1,nF);
 Fstate = colvec(Fstate,'xstate',1,nF);
 
-if nargin == 10,
+
+if nargin == 10 || nargin == 11,
 
   % Calling sequence 1
   % Derivatives are estimated by differences.
@@ -168,7 +168,11 @@ if nargin == 10,
 
   [A,iAfun,jAvar,iGfun,jGvar] = snJac(userFG,x,xlow,xupp,nF);
 
-elseif nargin == 12,
+  if ( nargin == 11 ),
+    optionsLoc = 1;
+  end
+
+elseif nargin == 12 || nargin == 13,
 
   % Calling sequence 2
   % Derivatives are estimated by differences.
@@ -178,7 +182,11 @@ elseif nargin == 12,
   ObjAdd = varargin{1};
   ObjRow = varargin{2};
 
-elseif nargin == 15,
+  if ( nargin == 13 ),
+    optionsLoc = 3;
+  end
+
+elseif nargin == 15 || nargin == 16,
 
   % Calling sequence 3
   % The user is providing derivatives.
@@ -188,6 +196,10 @@ elseif nargin == 15,
   jAvar  = varargin{3};
   iGfun  = varargin{4};
   jGvar  = varargin{5};
+
+  if ( nargin == 16 ),
+    optionsLoc = 6;
+  end
 
 elseif nargin == 17 || nargin == 18,
 
@@ -202,6 +214,10 @@ elseif nargin == 17 || nargin == 18,
   iGfun  = varargin{6};
   jGvar  = varargin{7};
 
+  if ( nargin == 18 ),
+    optionsLoc = 8;
+  end
+
 else
   error('Wrong number of input arguments')
 end
@@ -210,9 +226,9 @@ end
 probName = '';
 mlSTOP   = 0;
 
-if nargin == 18,
-  if isstruct(varargin{8}),
-    options = varargin{8};
+if optionsLoc > 0,
+  if isstruct(varargin{optionsLoc}),
+    options = varargin{optionsLoc};
     if isfield(options,'name'),
       probName = options.name;
     end
