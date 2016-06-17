@@ -49,4 +49,14 @@ fprintf('\nhs116: snopt solves hs116 ... ');
 snset ('Defaults');
 [x,F,info] = hs116;
 
+fprintf('\n============================================================= ');
+fprintf('\nhs116: snopt solves hs116 ... ');
+snset ('Defaults');
+[x,F,info] = hs116;
+
+fprintf('\n============================================================= ');
+fprintf('\nspring: snopt solves springA ... ');
+snset ('Defaults');
+[x,xmul,F,Fmul,info] = springa;
+
 snscreen off
