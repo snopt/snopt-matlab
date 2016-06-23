@@ -1101,8 +1101,10 @@ subroutine matlabFG(Status, n, x, needF, nF, F, needG, lenG, G, &
   call mxDestroyArray(prhs(2))
   call mxDestroyArray(prhs(3))
   call mxDestroyArray(prhs(4))
-  if (nrhs >= 5) call mxDestroyArray(prhs(5))
-  if (nrhs >= 6) call mxDestroyArray(prhs(6))
+  call mxDestroyArray(prhs(5))
+  call mxDestroyArray(prhs(6))
+  if (nrhs >= 7) call mxDestroyArray(prhs(7))
+  if (nrhs >= 8) call mxDestroyArray(prhs(8))
 
 end subroutine matlabFG
 
