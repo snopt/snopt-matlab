@@ -1,10 +1,6 @@
 function [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt( x, xlow, xupp, xmul, xstate,...
 						  Flow, Fupp, Fmul, Fstate,...
 						  userfun, varargin );
-% [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt( x, xlow, xupp, xmul, xstate, ...
-%                                               Flow, Fupp, Fmul, Fstate, ...
-%                                               userfun,varargin );
-%
 % This function solves the nonlinear optimization problem:
 % minimize:
 %            F(ObjRow) + ObjAdd
@@ -23,25 +19,30 @@ function [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt( x, xlow, xupp, xmu
 % problem information.
 %
 % Calling sequence 1:
-%  [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt ( x, xlow, xupp, xmul, xstate,
-%                                                 Flow, Fupp, Fmul, Fstate, userfun,
-%                                                 [options] )
+%  [...] = snopt ( x, xlow, xupp, xmul, xstate,
+%                  Flow, Fupp, Fmul, Fstate, userfun,
+%                  [options] )
 %
 % Calling sequence 2:
-%  [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt ( x, xlow, xupp, xmul, xstate,...
-%                                                 Flow, Fupp, Fmul, Fstate, userfun,...
-%                                                 ObjAdd, ObjRow, [options] )
+%  [...] = snopt ( x, xlow, xupp, xmul, xstate,...
+%                  Flow, Fupp, Fmul, Fstate, userfun,...
+%                  ObjAdd, ObjRow, [options] )
+%
 % Calling sequence 3:
-%  [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt ( x, xlow, xupp, xmul, xstate,...
-%                                                 Flow, Fupp, Fmul, Fstate, userfun,...
-%                                                 A, iAfun, jAvar, iGfun,
-%                                                 jGvar, [options] )
+%  [...] = snopt ( x, xlow, xupp, xmul, xstate,...
+%                  Flow, Fupp, Fmul, Fstate, userfun,...
+%                  A, iAfun, jAvar, iGfun,
+%                  jGvar, [options] )
 % Calling sequence 4:
-%  [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt ( x, xlow, xupp, xmul, xstate,...
-%                                                 Flow, Fupp, Fmul, Fstate, userfun,...
-%                                                 ObjAdd, ObjRow,
-%                                                 A, iAfun, jAvar, iGfun,
-%                                                 jGvar, [options] )
+%  [...] = snopt ( x, xlow, xupp, xmul, xstate,...
+%                  Flow, Fupp, Fmul, Fstate, userfun,...
+%                  ObjAdd, ObjRow,
+%                  A, iAfun, jAvar, iGfun,
+%                  jGvar, [options] )
+%
+% Output from snopt:
+%  [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt( ... )
+%
 %
 % INPUT:
 %  x             is the initial guess for x.

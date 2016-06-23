@@ -1,11 +1,15 @@
-function [x,fval,exitflag,lambda,states] = snsolve(userobj,x0,A,b,varargin)
+function [x,fval,exitflag,lambda,states,output] = snsolve(userobj,x0,A,b,varargin)
 
 % A wrapper for snopt to make it look like fmincon.
-%   [x,fval,exitflag,lambda,states] = snsolve(myobj,x0,A,b)
-%   [x,fval,exitflag,lambda,states] = snsolve(myobj,x0,A,b,Aeq,beq)
-%   [x,fval,exitflag,lambda,states] = snsolve(myobj,x0,A,b,Aeq,beq,xlow,xupp)
-%   [x,fval,exitflag,lambda,states] = snsolve(myobj,x0,A,b,Aeq,beq,xlow,xupp,nonlcon)
-%   [x,fval,exitflag,lambda,states] = snsolve(myobj,x0,A,b,Aeq,beq,xlow,xupp,nonlcon,options)
+%   [...] = snsolve(myobj,x0,A,b)
+%   [...] = snsolve(myobj,x0,A,b,Aeq,beq)
+%   [...] = snsolve(myobj,x0,A,b,Aeq,beq,xlow,xupp)
+%   [...] = snsolve(myobj,x0,A,b,Aeq,beq,xlow,xupp,nonlcon)
+%   [...] = snsolve(myobj,x0,A,b,Aeq,beq,xlow,xupp,nonlcon,options)
+%
+% Output from snsolve:
+%   [x,fval,exitflag,lambda,states,output] = snsolve(...)
+%
 %
 % Output:
 %   x                  solution
@@ -23,6 +27,10 @@ function [x,fval,exitflag,lambda,states] = snsolve(userobj,x0,A,b,varargin)
 %
 %   states.x           final state of variables
 %   states.F           final state of slack (constraint) variables
+%
+%   output.info        exit code from SNOPT (same as exitflag)
+%   output.iterations  the total number of minor iterations
+%   output.majors      the total number of major iterations
 %
 %
 % snsolve and fmincon assume problems are of the form:
@@ -209,7 +217,7 @@ states.F          = Fstate;
 
 output.info       = exitflag;
 output.iterations = itn;
-output.majoritns  = mjritn;
+output.majors     = mjritn;
 
 
 function [c,ceq] = dummyCon(x)
