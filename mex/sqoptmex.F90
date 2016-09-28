@@ -52,26 +52,28 @@ subroutine mexFunction(nlhs, plhs, nrhs, prhs)
   external         :: sqInit
 
   ! Get option.
-  if (nrhs < 1) call mexErrMsgTxt('Need an option input argument')
+  if (nrhs < 1) call mexErrMsgIdAndTxt('SNOPT:InputArg','Need an option input argument')
   rOpt = mxGetScalar(prhs(1))
   iOpt = rOpt
+
+  call mexAtExit( resetSNOPT )
 
 
   ! Deal with on/off screen, file, summary files first.
   if (iOpt == snOpenP) then
 
-     if (nrhs /= 2) call mexErrMsgTxt('Wrong number of input arguments')
+     if (nrhs /= 2) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong number of input arguments')
 
      info = mxIsChar(prhs(2))
-     if (info /= 1) call mexErrMsgTxt('Need a filename string')
+     if (info /= 1) call mexErrMsgIdAndTxt('SNOPT:InputArg','Need a filename string')
 
      strlen = mxGetN(prhs(2))
-     if (strlen > 80) call mexErrMsgTxt('Print filename is too long')
+     if (strlen > 80) call mexErrMsgIdAndTxt('SNOPT:InputArg','Print filename is too long')
 
      if (strlen > 0) then
         call mxGetString(prhs(2), filename, strlen)
      else
-        call mexErrMsgTxt('Empty print filename')
+        call mexErrMsgIdAndTxt('SNOPT:InputArg','Empty print filename')
      end if
 
      if (printOpen) close(iPrint)
@@ -82,18 +84,18 @@ subroutine mexFunction(nlhs, plhs, nrhs, prhs)
 
   else if (iOpt == snOpenS) then
 
-     if (nrhs /= 2) call mexErrMsgTxt('Wrong number of input arguments')
+     if (nrhs /= 2) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong number of input arguments')
 
      info = mxIsChar(prhs(2))
-     if (info /= 1) call mexErrMsgTxt('Need a filename string')
+     if (info /= 1) call mexErrMsgIdAndTxt('SNOPT:InputArg','Need a filename string')
 
      strlen = mxGetN(prhs(2))
-     if (strlen > 80) call mexErrMsgTxt('Summary filename is too long')
+     if (strlen > 80) call mexErrMsgIdAndTxt('SNOPT:InputArg','Summary filename is too long')
 
      if (strlen > 0) then
         call mxGetString(prhs(2), filename, strlen)
      else
-        call mexErrMsgTxt('Empty summary filename')
+        call mexErrMsgIdAndTxt('SNOPT:InputArg','Empty summary filename')
      end if
 
      if (summOpen) close(iSumm)
@@ -127,11 +129,13 @@ subroutine mexFunction(nlhs, plhs, nrhs, prhs)
      lenrw  = rlenrw
 
      if (leniw < 500 .or. lenrw < 500) &
-          call mexErrMsgTxt('Workspace size must be at least 500')
+          call mexErrMsgIdAndTxt('SNOPT:Workspace','Workspace size must be at least 500')
      return
 
   end if
 
+  ! What calls get here:
+  !   sqSolve, sqSet, sqGet, sqSpecs
 
   if (firstCall) then
      allocate(cw(lencw), iw(leniw), rw(lenrw))
@@ -170,17 +174,7 @@ subroutine mexFunction(nlhs, plhs, nrhs, prhs)
      callType = systemCall
 
   else if (iOpt == snEnd) then
-     if (printOpen) close(iPrint)
-     printOpen= .false.
-
-     if (summOpen) close(iSumm)
-     summOpen  = .false.
-     memCall   = .false.
-     firstCall = .true.
-
-     if (allocated(cw)) deallocate(cw)
-     if (allocated(iw)) deallocate(iw)
-     if (allocated(rw)) deallocate(rw)
+     call resetSNOPT
 
   end if
 
@@ -220,27 +214,26 @@ subroutine sqmxSolve (nlhs, plhs, nrhs, prhs)
   character*8      :: probName, Start
   integer          :: Errors, info, i1, i2, strlen
   integer          :: iObj, m, n, nnH, ncObj, neA, &
-                      nNames, mincw, miniw, minrw, nInf, nS
+                      mincw, miniw, minrw, nInf, nS
   double precision :: rinfo, Obj, ObjAdd, sInf
+
+  integer,         parameter   :: nNames = 1
+  character*8      :: Names(1)
+
   external         :: sqopt, matlabHx
 
   double precision, parameter   :: infBnd = 1.0d+20
 
-  character*8,      allocatable :: Names(:)
-  integer,          allocatable :: hEtype(:), hs(:), indA(:), locA(:)
-  double precision, allocatable :: cObj(:), x(:), pi(:), rc(:), bl(:), bu(:), &
-                                   valA(:), rlocA(:), rindA(:)
-
 
   ! Check number of input and output arguments.
-  if (nrhs /= 15) call mexErrMsgTxt('Wrong number of input arguments')
+  if (nrhs /= 15) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong number of input arguments')
 
 
   !---------------------------------------------------------------------
   ! Problem name
   !---------------------------------------------------------------------
   info = mxIsChar (prhs(2))
-  if (info /= 1) call mexErrMsgTxt('Wrong input type for problem name')
+  if (info /= 1) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong input type for problem name')
 
   strlen = mxGetN(prhs(2))
   if (strlen > 8) strlen = 8
@@ -256,11 +249,12 @@ subroutine sqmxSolve (nlhs, plhs, nrhs, prhs)
   n   = mxGetScalar(prhs(4))
   nnH = n
 
+
   !---------------------------------------------------------------------
   ! Hessian matrix
   !---------------------------------------------------------------------
   info = mxIsClass(prhs(5), 'function_handle')
-  if (info /= 1) call mexErrMsgTxt('Wrong input type for Hx')
+  if (info /= 1) call mexErrMsgIdAndTxt('SNOPT:FunArg','Wrong input type for Hx')
   HxHandle = mxDuplicateArray(prhs(5))
 
 
@@ -375,13 +369,6 @@ subroutine sqmxSolve (nlhs, plhs, nrhs, prhs)
         call mxCopyPtrToReal8(mxGetPr(prhs(15)), bu(i1:i2), m)
      end if
   end if
-
-
-  !---------------------------------------------------------------------
-  ! Allocate other space for SNOPT
-  !---------------------------------------------------------------------
-  nNames = 1
-  allocate(Names(nNames))
 
   iObj   = 0
   ObjAdd = 0.0
@@ -501,18 +488,7 @@ subroutine sqmxSolve (nlhs, plhs, nrhs, prhs)
   if (HxHandle /= 0) call mxDestroyArray(HxHandle)
   HxHandle = 0
 
-  if (allocated(x))      deallocate(x)
-  if (allocated(pi))     deallocate(pi)
-  if (allocated(rc))     deallocate(rc)
-  if (allocated(bl))     deallocate(bl)
-  if (allocated(bu))     deallocate(bu)
-  if (allocated(Names))  deallocate(Names)
-  if (allocated(hs))     deallocate(hs)
-  if (allocated(hEtype)) deallocate(hEtype)
-
-  if (allocated(indA))   deallocate(indA)
-  if (allocated(locA))   deallocate(locA)
-  if (allocated(valA))   deallocate(valA)
+  call deallocSQOPT
 
 end subroutine sqmxSolve
 
@@ -542,20 +518,20 @@ subroutine snmxOptions (iOpt, nlhs, plhs, nrhs, prhs)
 
 
   if (iOpt == snSetIX .or. iOpt == snSetRX) then
-     if (nrhs /= 3) call mexErrMsgTxt('Wrong number of input arguments')
+     if (nrhs /= 3) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong number of input arguments')
   else
-     if (nrhs /= 2) call mexErrMsgTxt('Wrong number of input arguments')
+     if (nrhs /= 2) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong number of input arguments')
   end if
 
 
   ! Get string
   strlen = mxGetN(prhs(2))
-  if (strlen > 50) call mexErrMsgTxt('Option string is too long')
+  if (strlen > 50) call mexErrMsgIdAndTxt('SNOPT:InputArg','Option string is too long')
 
   if (strlen > 0) then
      call mxGetString(prhs(2), buffer, strlen)
   else
-     call mexErrMsgTxt('Empty option string')
+     call mexErrMsgIdAndTxt('SNOPT:InputArg','Empty option string')
   end if
 
 
@@ -632,17 +608,17 @@ subroutine snmxSpecs (nlhs, plhs, nrhs, prhs)
   external         :: sqSpec
 
 
-  if (nrhs /= 2) call mexErrMsgTxt('Wrong number of input arguments')
-  if (nlhs /= 1) call mexErrMsgTxt('Wrong number of output arguments')
+  if (nrhs /= 2) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong number of input arguments')
+  if (nlhs /= 1) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong number of output arguments')
 
 
   strlen = mxGetN(prhs(2))
-  if (strlen > 120) call mexErrMsgTxt('Specs filename is too long')
+  if (strlen > 120) call mexErrMsgIdAndTxt('SNOPT:InputArg','Specs filename is too long')
 
   if (strlen > 0) then
      call mxGetString(prhs(2), filename, strlen)
   else
-     call mexErrMsgTxt('Empty spc filename')
+     call mexErrMsgIdAndTxt('SNOPT:InputArg','Empty spc filename')
   end if
 
   open(iSpecs, file=filename, status='unknown')
@@ -666,7 +642,8 @@ end subroutine snmxSpecs
 
 subroutine matlabHx (nnH, x, Hx, Status, &
                       cu, lencu, iu, leniu, ru, lenru)
-  use mxsnWork
+
+  use mxsnWork, only : HxHandle, checkCol, checkRow
   implicit none
 
   integer          :: Status, nnH, lencu, leniu, lenru, iu(leniu)
