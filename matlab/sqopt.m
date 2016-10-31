@@ -1,5 +1,4 @@
 function [x,Obj,INFO,lambda,states,output] = sqopt( name, Hx, c, x0, xl, xu, A, al, au )
-% [x,Obj,INFO,lambda,states,output] = sqopt ( name, Hx, c, x0, xl, xu, A, al, au );
 %
 % This function solves the quadratic optimization problem:
 %   minimize:

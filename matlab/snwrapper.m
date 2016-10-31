@@ -1,5 +1,4 @@
 function [F,G] = snwrapper(x,userfun,nF,n,needF,needG,varargin)
-%function [F,G] = snwrapper(x,userfun,n);
 %   Wrapper to allow variable length arguments in
 %   user-supplied functions.
 
