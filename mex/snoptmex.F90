@@ -53,26 +53,29 @@ subroutine mexFunction(nlhs, plhs, nrhs, prhs)
   external         :: snInit
 
   ! Get option.
-  if (nrhs < 1) call mexErrMsgTxt('Need an option input argument')
+  if (nrhs < 1) call mexErrMsgIdAndTxt('SNOPT:InputArgs','Need an option input argument')
   rOpt = mxGetScalar(prhs(1))
   iOpt = rOpt
+
+  ! Register exit function.
+  call mexAtExit( resetSNOPT )
 
 
   ! Deal with on/off screen, print, and summary files first.
   if (iOpt == snOpenP) then
 
-     if (nrhs /= 2) call mexErrMsgTxt('Wrong number of input arguments')
+     if (nrhs /= 2) call mexErrMsgIdAndTxt('SNOPT:InputArgs','Wrong number of input arguments')
 
      info = mxIsChar(prhs(2))
-     if (info /= 1) call mexErrMsgTxt('Need a filename string')
+     if (info /= 1) call mexErrMsgIdAndTxt('SNOPT:FileArgs','Need a filename string')
 
      strlen = mxGetN(prhs(2))
-     if (strlen > 80) call mexErrMsgTxt('Print filename is too long')
+     if (strlen > 80) call mexErrMsgIdAndTxt('SNOPT:FileArg','Print filename is too long')
 
      if (strlen > 0) then
         call mxGetString(prhs(2), filename, strlen)
      else
-        call mexErrMsgTxt('Empty print filename')
+        call mexErrMsgIdAndTxt('SNOPT:FileArg','Empty print filename')
      end if
 
      if (printOpen) close(iPrint)
@@ -83,18 +86,18 @@ subroutine mexFunction(nlhs, plhs, nrhs, prhs)
 
   else if (iOpt == snOpenS) then
 
-     if (nrhs /= 2) call mexErrMsgTxt('Wrong number of input arguments')
+     if (nrhs /= 2) call mexErrMsgIdAndTxt('SNOPT:InputArgs','Wrong number of input arguments')
 
      info = mxIsChar(prhs(2))
-     if (info /= 1) call mexErrMsgTxt('Need a filename string')
+     if (info /= 1) call mexErrMsgIdAndTxt('SNOPT:FileArgs','Need a filename string')
 
      strlen = mxGetN(prhs(2))
-     if (strlen > 80) call mexErrMsgTxt('Summary filename is too long')
+     if (strlen > 80) call mexErrMsgIdAndTxt('SNOPT:FileArgs','Summary filename is too long')
 
      if (strlen > 0) then
         call mxGetString(prhs(2), filename, strlen)
      else
-        call mexErrMsgTxt('Empty summary filename')
+        call mexErrMsgIdAndTxt('SNOPT:FileArg','Empty print filename')
      end if
 
      if (summOpen) close(iSumm)
@@ -128,10 +131,12 @@ subroutine mexFunction(nlhs, plhs, nrhs, prhs)
      lenrw  = rlenrw
 
      if (leniw < 500 .or. lenrw < 500) &
-          call mexErrMsgTxt('Workspace size must be at least 500')
+          call mexErrMsgIdAndTxt('SNOPT:Workspace','Workspace size must be at least 500')
      return
   end if
 
+  ! What calls get to this point:
+  !  snSolve, snGet, snSet, snSpecs, snJac
   if (firstCall) then
      allocate(cw(lencw), iw(leniw), rw(lenrw))
 
@@ -175,17 +180,8 @@ subroutine mexFunction(nlhs, plhs, nrhs, prhs)
      callType = systemCall
 
   else if (iOpt == snEnd) then
-     if (printOpen) close(iPrint)
-     printOpen= .false.
 
-     if (summOpen) close(iSumm)
-     summOpen = .false.
-     firstCall = .true.
-     memCall   = .false.
-
-     if (allocated(cw)) deallocate(cw)
-     if (allocated(iw)) deallocate(iw)
-     if (allocated(rw)) deallocate(rw)
+     call resetSNOPT
 
   end if
 
@@ -219,23 +215,19 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
   character*8      :: probName
   integer          :: info, Errors, tmp
   integer          :: Start, ObjRow, n, nF, lenA, lenG, neA, &
-                      nxname, nFname, mincw, miniw, minrw, nInf, nS
+                      mincw, miniw, minrw, nInf, nS
   double precision :: rinfo, ObjAdd, sInf
   external         :: snMemA, snKerA, matlabFG, matlabSTOP
   external         :: snLog, snLog2, sqLog
 
   double precision, parameter   :: infBnd = 1.0d+20
 
-  character*8,      allocatable :: xname(:), Fname(:)
-  integer,          allocatable :: xstate(:), Fstate(:), &
-                                   iAfun(:), jAvar(:), iGfun(:), jGvar(:)
-  double precision, allocatable :: x(:), xmul(:), xlow(:), xupp(:), &
-                                   F(:), Fmul(:), Flow(:), Fupp(:), A(:), &
-                                   rtmp(:), riA(:), rjA(:)
-
+  integer,          parameter   :: nxname = 1, nFname = 1
+  character*8                   :: xname(1), Fname(1)
 
   ! Check number of input and output arguments.
-  if (nrhs /= 20 .and. nrhs /= 21) call mexErrMsgTxt('Wrong number of input arguments')
+  if (nrhs /= 20 .and. nrhs /= 21) &
+       call mexErrMsgIdAndTxt('SNOPT:InputArgs','Wrong number of input arguments')
 
 
   !---------------------------------------------------------------------
@@ -246,9 +238,7 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
   n  = mxGetM(prhs(2))
   nF = mxGetM(prhs(7))
 
-  allocate(x(n),  xlow(n),  xupp(n),  xmul(n),  xstate(n))
-  allocate(F(nF), Flow(nF), Fupp(nF), Fmul(nF), Fstate(nF))
-  allocate(rtmp(max(n,nF)))
+  call allocSNOPT(n, nF)
 
   ! Get initial x
   if (mxIsEmpty(prhs(2)) > 0 ) then
@@ -292,8 +282,8 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
   else
      call checkRow(prhs(6), n, 'xstate')
      call checkCol(prhs(6), 1, 'xstate')
-     call mxCopyPtrToReal8(mxGetPr(prhs(6)), rtmp, n)
-     xstate = rtmp(1:n)
+     call mxCopyPtrToReal8(mxGetPr(prhs(6)), rtmpa, n)
+     xstate = rtmpa(1:n)
   end if
 
   ! Get lower bounds
@@ -329,13 +319,13 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
   else
      call checkRow(prhs(10), nF, 'Fstate')
      call checkCol(prhs(10),  1, 'Fstate')
-     call mxCopyPtrToReal8(mxGetPr(prhs(10)), rtmp, nF)
-     Fstate = rtmp(1:nF)
+     call mxCopyPtrToReal8(mxGetPr(prhs(10)), rtmpa, nF)
+     Fstate = rtmpa(1:nF)
   end if
 
-  ObjAdd  = mxGetScalar(prhs(11))
-  rtmp(1) = mxGetScalar(prhs(12))
-  ObjRow  = rtmp(1)
+  ObjAdd   = mxGetScalar(prhs(11))
+  rtmpa(1) = mxGetScalar(prhs(12))
+  ObjRow   = rtmpa(1)
 
   !---------------------------------------------------------------------
   ! Get the Jacobian structure (linear and nonlinear)
@@ -356,20 +346,21 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
      call checkRow(prhs(15), neA, 'jAvar')
      call checkCol(prhs(15),   1, 'jAvar')
 
-     allocate(iAfun(lenA), jAvar(lenA), A(lenA))
-     allocate(riA(lenA), rjA(lenA))
+     call allocA( lenA )
 
-     call mxCopyPtrToReal8(mxGetPr(prhs(13)),   A, neA)
-     call mxCopyPtrToReal8(mxGetPr(prhs(14)), riA, neA)
-     call mxCopyPtrToReal8(mxGetPr(prhs(15)), rjA, neA)
+     call mxCopyPtrToReal8(mxGetPr(prhs(13)),      A, neA)
+     call mxCopyPtrToReal8(mxGetPr(prhs(14)), riAfun, neA)
+     call mxCopyPtrToReal8(mxGetPr(prhs(15)), rjAvar, neA)
 
-     iAfun = riA(1:neA)
-     jAvar = rjA(1:neA)
-     deallocate(riA, rjA)
+     iAfun(1:neA) = riAfun(1:neA)
+     jAvar(1:neA) = rjAvar(1:neA)
+
+     deallocate(riAfun, rjAvar)
   else
      neA  = 0
      lenA = 0
-     allocate(iAfun(1), jAvar(1), A(1))
+
+     call allocA( 1 )
   end if
 
 
@@ -387,19 +378,18 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
      call checkRow(prhs(17), neG, 'jGvar')
      call checkCol(prhs(17),   1, 'jGvar')
 
-     allocate( iGfun(lenG),  jGvar(lenG))
-     allocate(riGfun(lenG), rjGvar(lenG))
+     call allocG( lenG )
 
      call mxCopyPtrToReal8(mxGetPr(prhs(16)), riGfun, neG)
      call mxCopyPtrToReal8(mxGetPr(prhs(17)), rjGvar, neG)
 
-     iGfun = riGfun(1:neG)
-     jGvar = rjGvar(1:neG)
+     iGfun(1:neG) = riGfun(1:neG)
+     jGvar(1:neG) = rjGvar(1:neG)
 
   else
      neG  = 0
      lenG = 0
-     allocate(iGfun(1), jGvar(1))
+     call allocG( 1 )
   end if
 
 
@@ -410,14 +400,14 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
   if (nrhs == 20) then
      ! snopt.m
      info = mxIsClass(prhs(18), 'function_handle')
-     if (info /= 1) call mexErrMsgTxt('Wrong input type for userfg')
+     if (info /= 1) call mexErrMsgIdAndTxt('SNOPT:FunArg','Wrong input type for userfg')
      fgHandle  = mxDuplicateArray(prhs(18))
      objHandle = 0
      conHandle = 0
 
      ! Problem name
      info = mxIsChar(prhs(19))
-     if (info /= 1) call mexErrMsgTxt('Wrong input type for problem name')
+     if (info /= 1) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong input type for problem name')
      tmp = mxGetN(prhs(19))
      call mxGetString(prhs(19), probName, min(8,tmp))
 
@@ -427,7 +417,7 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
      if ( info /= 1 ) then
         ! Check if STOP function is actually a function
         info = mxIsClass(prhs(20), 'function_handle')
-        if (info /= 1) call mexErrMsgTxt('Wrong input type for snSTOP')
+        if (info /= 1) call mexErrMsgIdAndTxt('SNOPT:FunArg','Wrong input type for snSTOP')
         stopHandle = mxDuplicateARray(prhs(20))
      end if
 
@@ -436,16 +426,16 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
      fgHandle  = 0
 
      info = mxIsClass(prhs(18), 'function_handle')
-     if (info /= 1) call mexErrMsgTxt('Wrong input type for funobj')
+     if (info /= 1) call mexErrMsgIdAndTxt('SNOPT:FunArg','Wrong input type for funobj')
      objHandle = mxDuplicateArray(prhs(18))
 
      info = mxIsClass(prhs(19), 'function_handle')
-     if (info /= 1) call mexErrMsgTxt('Wrong input type for nonlcon')
+     if (info /= 1) call mexErrMsgIdAndTxt('SNOPT:FunArg','Wrong input type for nonlcon')
      conHandle = mxDuplicateArray(prhs(19))
 
      ! Problem name
      info = mxIsChar(prhs(20))
-     if (info /= 1) call mexErrMsgTxt('Wrong input type for problem name')
+     if (info /= 1) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong input type for problem name')
      tmp = mxGetN(prhs(20))
      call mxGetString(prhs(20), probName, min(8,tmp))
 
@@ -455,18 +445,11 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
      if ( info /= 1 ) then
         ! Check if STOP function is actually a function
         info = mxIsClass(prhs(21), 'function_handle')
-        if (info /= 1) call mexErrMsgTxt('Wrong input type for snSTOP')
+        if (info /= 1) call mexErrMsgIdAndTxt('SNOPT:FunArg','Wrong input type for snSTOP')
         stopHandle = mxDuplicateARray(prhs(21))
      end if
 
   end if
-
-  !---------------------------------------------------------------------
-  ! Allocate other space for SNOPT
-  !---------------------------------------------------------------------
-  nfname = 1
-  nxname = 1
-  allocate(xname(nxname), Fname(nFname))
 
 
   !---------------------------------------------------------------------
@@ -594,8 +577,6 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
   if (nlhs > 8) plhs(9) = mxCreateDoubleScalar(rinfo)
 
 
-
-
   ! Deallocate memory
   if (fgHandle    /= 0) call mxDestroyArray(fgHandle)
   if (objHandle   /= 0) call mxDestroyArray(objHandle)
@@ -607,29 +588,9 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
   conHandle  = 0
   stopHandle = 0
 
-  if (allocated(rtmp))   deallocate(rtmp)
-  if (allocated(x))      deallocate(x)
-  if (allocated(xmul))   deallocate(xmul)
-  if (allocated(xlow))   deallocate(xlow)
-  if (allocated(xupp))   deallocate(xupp)
-  if (allocated(xname))  deallocate(xname)
-  if (allocated(xstate)) deallocate(xstate)
-
-  if (allocated(F))      deallocate(F)
-  if (allocated(Fmul))   deallocate(Fmul)
-  if (allocated(Flow))   deallocate(Flow)
-  if (allocated(Fupp))   deallocate(Fupp)
-  if (allocated(Fname))  deallocate(Fname)
-  if (allocated(Fstate)) deallocate(Fstate)
-
-  if (allocated(iAfun))  deallocate(iAfun)
-  if (allocated(jAvar))  deallocate(jAvar)
-  if (allocated(A))      deallocate(A)
-  if (allocated(iGfun))  deallocate(iGfun)
-  if (allocated(jGvar))  deallocate(jGvar)
-
-  if (allocated(riGfun)) deallocate(riGfun)
-  if (allocated(rjGvar)) deallocate(rjGvar)
+  call deallocSNOPT
+  call deallocA
+  call deallocG
 
 end subroutine snmxSolve
 
@@ -654,56 +615,49 @@ subroutine snmxFindJac (nlhs, plhs, nrhs, prhs)
   double precision :: mxGetScalar
 
   integer          :: iExit, Errors, info, lenA, lenG, n, neA, nF, &
-                      nfname, nxname, mincw, miniw, minrw
+                       mincw, miniw, minrw
   double precision :: rtmp
-
-  integer,          allocatable :: iAfun(:), jAvar(:), iGfun(:), jGvar(:)
-  double precision, allocatable :: riAfun(:), rjAvar(:)
-  double precision, allocatable :: A(:), x(:), xlow(:), xupp(:)
 
   external         :: snMemA, snJac, matlabFG
 
-  if (nlhs /= 5) call mexErrMsgTxt('Wrong number of output variables')
-  if (nrhs /= 6) call mexErrMsgTxt('Wrong number of input arguments')
+  integer, parameter :: nxname = 1, nFname = 1
+
+
+  if (nlhs /= 5) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong number of output variables')
+  if (nrhs /= 6) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong number of input arguments')
 
 
   ! Get userfg function
   info = mxIsClass(prhs(2), 'function_handle')
-  if (info /= 1) call mexErrMsgTxt('Wrong input type for userfg')
+  if (info /= 1) call mexErrMsgIdAndTxt('SNOPT:FunArg','Wrong input type for userfg')
   fgHandle = mxDuplicateArray(prhs(2))
 
 
   ! Set the number of variables
   n = mxGetM (prhs(3))
-  allocate(x(n), xlow(n), xupp(n))
-
-
-  ! Get initial point x0
-  call mxCopyPtrToReal8(mxGetPr(prhs(3)), x, n)
-
-
-  ! Get lower and upper bounds
-  call mxCopyPtrToReal8(mxGetPr(prhs(4)), xlow, n)
-  call mxCopyPtrToReal8(mxGetPr(prhs(5)), xupp, n)
-
 
   ! Get number of constraints
   rtmp = mxGetScalar(prhs(6))
   nF   = rtmp
 
-  if (nF == 0 .or. n == 0) call mexErrMsgTxt('Empty inputs to snJac')
+  if (nF == 0 .or. n == 0) call mexErrMsgIdAndTxt('SNOPT:Input','Empty inputs to snJac')
 
-  ! Allocatespace
+  ! Allocate space
   lenA = n*nF
   neA  = lenA
   lenG = lenA
   neG  = lenA
 
-  allocate(iAfun(lenA), jAvar(lenA), A(lenA))
-  allocate(iGfun(lenG), jGvar(lenG))
+  call allocJac( n, lenA, lenG )
 
-  nfname = 1
-  nxname = 1
+
+  ! Get initial point x0
+  call mxCopyPtrToReal8(mxGetPr(prhs(3)), x, n)
+
+  ! Get lower and upper bounds
+  call mxCopyPtrToReal8(mxGetPr(prhs(4)), xlow, n)
+  call mxCopyPtrToReal8(mxGetPr(prhs(5)), xupp, n)
+
 
   !---------------------------------------------------------------------
   ! Set workspace
@@ -770,13 +724,10 @@ subroutine snmxFindJac (nlhs, plhs, nrhs, prhs)
      go to 100
   end if
 
-
-  allocate(riAfun(neA), rjAvar(neA), riGfun(neG), rjGvar(neG))
-  riAfun = iAfun(1:neA)
-  rjAvar = jAvar(1:neA)
-  riGfun = iGfun(1:neG)
-  rjGvar = jGvar(1:neG)
-
+  riAfun(1:neA) = iAfun(1:neA)
+  rjAvar(1:neA) = jAvar(1:neA)
+  riGfun(1:neG) = iGfun(1:neG)
+  rjGvar(1:neG) = jGvar(1:neG)
 
   ! Set output [A, iAfun, jAvar, iGfun, jGvar ]
   plhs(1) = mxCreateDoubleMatrix(neA, 1, 0)
@@ -793,11 +744,8 @@ subroutine snmxFindJac (nlhs, plhs, nrhs, prhs)
   call mxCopyReal8ToPtr(riGfun,   mxGetPr(plhs(4)), neG)
   call mxCopyReal8ToPtr(rjGvar,   mxGetPr(plhs(5)), neG)
 
-
   ! Destroy arrays
-  deallocate(x, xlow, xupp)
-  deallocate( iAfun,  jAvar,  iGfun,  jGvar, A)
-  deallocate(riAfun, rjAvar, riGfun, rjGvar)
+  call deallocJac
 
   call mxDestroyArray(fgHandle)
   fgHandle = 0
@@ -830,20 +778,20 @@ subroutine snmxOptions(iOpt, nlhs, plhs, nrhs, prhs)
 
 
   if (iOpt == snSetIX .or. iOpt == snSetRX) then
-     if (nrhs /= 3) call mexErrMsgTxt('Wrong number of input arguments')
+     if (nrhs /= 3) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong number of input arguments')
   else
-     if (nrhs /= 2) call mexErrMsgTxt('Wrong number of input arguments')
+     if (nrhs /= 2) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong number of input arguments')
   end if
 
 
   ! Get string
   strlen = mxGetN(prhs(2))
-  if (strlen > 50) call mexErrMsgTxt('Option string is too long')
+  if (strlen > 50) call mexErrMsgIdAndTxt('SNOPT:InputArg','Option string is too long')
 
   if (strlen > 0) then
      call mxGetString(prhs(2), buffer, strlen)
   else
-     call mexErrMsgTxt('Empty option string')
+     call mexErrMsgIdAndTxt('SNOPT:InputArg','Empty option string')
   end if
 
 
@@ -920,17 +868,17 @@ subroutine snmxSpecs(nlhs, plhs, nrhs, prhs)
   external         :: snSpec
 
 
-  if (nrhs /= 2) call mexErrMsgTxt('Wrong number of input arguments')
-  if (nlhs /= 1) call mexErrMsgTxt('Wrong number of output arguments')
+  if (nrhs /= 2) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong number of input arguments')
+  if (nlhs /= 1) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong number of output arguments')
 
 
   strlen = mxGetN(prhs(2))
-  if (strlen > 120) call mexErrMsgTxt('Specs filename is too long')
+  if (strlen > 120) call mexErrMsgIdAndTxt('SNOPT:InputArg','Specs filename is too long')
 
   if (strlen > 0) then
      call mxGetString(prhs(2), filename, strlen)
   else
-     call mexErrMsgTxt('Empty spc filename')
+     call mexErrMsgIdAndTxt('SNOPT:InputArg','Empty spc filename')
   end if
 
   open(iSpecs, file=filename, status='unknown')
@@ -954,7 +902,11 @@ end subroutine snmxSpecs
 
 subroutine matlabFG(Status, n, x, needF, nF, F, needG, lenG, G, &
                      cu, lencu, iu, leniu, ru, lenru)
-  use mxsnWork
+
+  use mxsnWork, only : checkRow, checkCol, &
+                       fgHandle, objHandle, conHandle, &
+                       neG, riGfun, rjGvar, G1
+
   implicit none
 
   integer          :: Status, n, nF, needF, needG, lenG, &
@@ -967,8 +919,7 @@ subroutine matlabFG(Status, n, x, needF, nF, F, needG, lenG, G, &
   !---------------------------------------------------------------------
   integer*4        :: nlhs, nrhs, nlhs1, nrhs1
   double precision :: tmp
-  double precision, allocatable :: G1(:)
-
+  character(20) :: str
   mwIndex          :: j
 
   mwPointer        :: prhs(8), plhs(2), prhs1(3), plhs1(1)
@@ -1057,7 +1008,6 @@ subroutine matlabFG(Status, n, x, needF, nF, F, needG, lenG, G, &
 
 
            ! Copy non-NaN entries of G.
-           allocate(G1(neG))
            call mxCopyPtrToReal8(mxGetPr(plhs1(1)), G1, neG)
 
            do j = 1, neG
@@ -1065,8 +1015,6 @@ subroutine matlabFG(Status, n, x, needF, nF, F, needG, lenG, G, &
                  G(j) = G1(j)
               end if
            end do
-
-           deallocate(G1)
 
 
            ! Destroy array
@@ -1078,7 +1026,6 @@ subroutine matlabFG(Status, n, x, needF, nF, F, needG, lenG, G, &
         else
            ! Sparse G given
            ! Copy non-NaN entries of G.
-           allocate(G1(neG))
            call mxCopyPtrToReal8(mxGetPr(plhs(2)), G1, neG)
 
            do j = 1, neG
@@ -1087,7 +1034,6 @@ subroutine matlabFG(Status, n, x, needF, nF, F, needG, lenG, G, &
               end if
            end do
 
-           deallocate(G1)
         end if
      end if
   end if
@@ -1124,8 +1070,8 @@ subroutine matlabSTOP &
        cu, lencu, iu, leniu, ru, lenru,                  &
        cw, lencw, iw, leniw, rw, lenrw )
 
-  use mxsnWork, only : stopHandle
-
+  use mxsnWork, only : stopHandle, allocF, deallocF, &
+                       tF, tFmul, tFlow, tFupp, tFstate
   implicit none
 
   logical, intent(in) :: KTcond(2)
@@ -1142,6 +1088,7 @@ subroutine matlabSTOP &
        scales(nb), bl(nb), bu(nb), Fx(nnCon0),                        &
        fCon(nnCon0), gCon(negCon), gObj(nnObj0), Jcol(neJ), pi(m),    &
        rc(nb), rg(maxS), yCon(nnCon0), x(nb), rw(lenrw)
+
   character(8), intent(in) :: cw(lencw)*8
 
   integer,          intent(inout) :: iu(leniu)
@@ -1169,9 +1116,6 @@ subroutine matlabSTOP &
   mwPointer        :: mxGetPr, mxDuplicateArray, mxCreateDoubleMatrix, &
                       mxCreateDoubleScalar
   double precision :: mxGetScalar
-
-  integer,          allocatable :: Fstate(:)
-  double precision, allocatable :: F(:), Fmul(:), Flow(:), Fupp(:)
 
   iAbort = 0
 
@@ -1220,45 +1164,46 @@ subroutine matlabSTOP &
      nkx    = iw(247)
      lkxN   = iw(252) ! jN = kxN(j ) => col j of Jcol is variable jN
 
-     allocate( F(nF), Fstate(nF), Fmul(nF), Flow(nF), Fupp(nF) )
+     call allocF( nF )
+
      do j  = n+1, nkx
         i  = j - n
         iN = iw(lkxN-1+j)
          if (iN == ObjRow) then
             if (iObj > 0) then
-               F(ObjRow) = fObj + x(n+iObj)
+               tF(ObjRow) = fObj + x(n+iObj)
             else
-               F(ObjRow) = fObj
+               tF(ObjRow) = fObj
             end if
          else
             if (i <= nnCon) then
-               F(iN) = Fx(i)
+               tF(iN) = Fx(i)
             else
-               F(iN) =  x(j)
+               tF(iN) =  x(j)
             end if
-            Fstate(iN) = hs(j)
-            Fmul(iN)   = rc(j)
-            Flow(iN)   = bl(j)
-            Fupp(iN)   = bu(j)
+            tFstate(iN) = hs(j)
+            tFmul(iN)   = rc(j)
+            tFlow(iN)   = bl(j)
+            tFupp(iN)   = bu(j)
          end if
       end do
 
      prhs(18) = mxCreateDoubleMatrix(nF,1,0)
-     call mxCopyReal8ToPtr(F, mxGetPr(prhs(18)), nF)
+     call mxCopyReal8ToPtr(tF, mxGetPr(prhs(18)), nF)
 
      prhs(19) = mxCreateDoubleMatrix(nF,1,0)
-     call mxCopyReal8ToPtr(Flow, mxGetPr(prhs(19)), nF)
+     call mxCopyReal8ToPtr(tFlow, mxGetPr(prhs(19)), nF)
 
      prhs(20) = mxCreateDoubleMatrix(nF,1,0)
-     call mxCopyReal8ToPtr(Fupp, mxGetPr(prhs(20)), nF)
+     call mxCopyReal8ToPtr(tFupp, mxGetPr(prhs(20)), nF)
 
      prhs(21) = mxCreateDoubleMatrix(nF,1,0)
-     call mxCopyReal8ToPtr(Fmul, mxGetPr(prhs(21)), nF)
+     call mxCopyReal8ToPtr(tFmul, mxGetPr(prhs(21)), nF)
 
      prhs(22) = mxCreateDoubleMatrix(nF,1,0)
-     call mxCopyReal8ToPtr(real(Fstate,8), mxGetPr(prhs(22)), nF)
+     call mxCopyReal8ToPtr(real(tFstate,8), mxGetPr(prhs(22)), nF)
 
-     deallocate( F, Flow, Fupp, Fmul, Fstate )
+     call deallocF
 
      call mexCallMatlab(nlhs, plhs, nrhs, prhs, 'feval')
 
