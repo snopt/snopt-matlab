@@ -162,12 +162,12 @@ subroutine mexFunction(nlhs, plhs, nrhs, prhs)
      callType = systemCall
 
   else if (iOpt == snSetXX .or. &
-            iOpt == snSetIX .or. &
-            iOpt == snSetRX .or. &
-            iOpt == snGetXX .or. &
-            iOpt == snGetCX .or. &
-            iOpt == snGetIX .or. &
-            iOpt == snGetRX) then
+           iOpt == snSetIX .or. &
+           iOpt == snSetRX .or. &
+           iOpt == snGetXX .or. &
+           iOpt == snGetCX .or. &
+           iOpt == snGetIX .or. &
+           iOpt == snGetRX) then
 
      callType = userCall
      call snmxOptions (iOpt, nlhs, plhs, nrhs, prhs)
@@ -251,7 +251,7 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
 
   ! Get lower bounds
   if (mxIsEmpty(prhs(3)) > 0) then
-     xlow = -infBnd
+     xlow(1:n) = -infBnd
   else
      call checkRow(prhs(3), n, 'xlow')
      call checkCol(prhs(3), 1, 'xlow')
@@ -260,7 +260,7 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
 
   ! Get upper bounds
   if (mxIsEmpty(prhs(4)) > 0) then
-     xupp = infBnd
+     xupp(1:n) = infBnd
   else
      call checkRow(prhs(4), n, 'xupp')
      call checkCol(prhs(4), 1, 'xupp')
@@ -269,7 +269,7 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
 
   ! Get initial multipliers
   if (mxIsEmpty(prhs(5)) > 0) then
-     xmul = 0
+     xmul(1:n) = 0
   else
      call checkRow(prhs(5), n, 'xmul')
      call checkCol(prhs(5), 1, 'xmul')
@@ -278,17 +278,17 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
 
   ! Get initial states
   if (mxIsEmpty(prhs(6)) > 0) then
-     xstate = 0
+     xstate(1:n) = 0
   else
      call checkRow(prhs(6), n, 'xstate')
      call checkCol(prhs(6), 1, 'xstate')
      call mxCopyPtrToReal8(mxGetPr(prhs(6)), rtmpa, n)
-     xstate = rtmpa(1:n)
+     xstate(1:n) = rtmpa(1:n)
   end if
 
   ! Get lower bounds
   if (mxIsEmpty(prhs(7)) > 0) then
-     Flow = -infBnd
+     Flow(1:nF) = -infBnd
   else
      call checkRow(prhs(7),  nF, 'Fupp')
      call checkCol(prhs(7),   1, 'Flow')
@@ -297,7 +297,7 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
 
   ! Get upper bounds
   if (mxIsEmpty(prhs(8)) > 0) then
-     Fupp = infBnd
+     Fupp(1:nF) = infBnd
   else
      call checkRow(prhs(8),  nF, 'Fupp')
      call checkCol(prhs(8),   1, 'Fupp')
@@ -306,7 +306,7 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
 
   ! Get multipliers
   if (mxIsEmpty(prhs(9)) > 0) then
-     Fmul = 0.0
+     Fmul(1:nF) = 0.0
   else
      call checkRow(prhs(9),  nF, 'Fmul')
      call checkCol(prhs(9),   1, 'Fmul')
@@ -315,12 +315,12 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
 
   ! Get states
   if (mxIsEmpty(prhs(10)) > 0) then
-     Fstate = 0
+     Fstate(1:nF) = 0
   else
      call checkRow(prhs(10), nF, 'Fstate')
      call checkCol(prhs(10),  1, 'Fstate')
      call mxCopyPtrToReal8(mxGetPr(prhs(10)), rtmpa, nF)
-     Fstate = rtmpa(1:nF)
+     Fstate(1:nF) = rtmpa(1:nF)
   end if
 
   ObjAdd   = mxGetScalar(prhs(11))

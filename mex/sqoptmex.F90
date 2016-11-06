@@ -281,9 +281,9 @@ subroutine sqmxSolve (nlhs, plhs, nrhs, prhs)
   allocate(x(n+m), hs(n+m), hEtype(n+m), pi(m), rc(n+m))
   allocate(bl(n+m), bu(n+m))
 
-  x      = 0.0
-  hs     = 0
-  hEtype = 0
+  x(1:n+m)      = 0.0
+  hs(1:n+m)     = 0
+  hEtype(1:n+m) = 0
 
   if (.not. mxIsEmpty(prhs(7)) > 0) then
      call checkRow(prhs(7), n, 'x0')
