@@ -14,10 +14,8 @@ Gind = sub2ind(size(Gfull), iGfun, jGvar);
 Gvec = Gfull(Gind);
 
 % Avoid Gvec being stored in sparse format:
-Gvec  = full(Gvec);
-[m,n] = size(Gvec);
+Gvec = full(Gvec);
+m    = size(Gvec,1);
 if m == 1,
   Gvec = Gvec';
 end
-
-
