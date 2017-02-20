@@ -6,4 +6,4 @@
 function snsetwork( leniw, lenrw )
 
 setoptionI = 14;
-snoptmex( snsetoptionI, leniw, lenrw );
+snoptmex( setoptionI, leniw, lenrw );
