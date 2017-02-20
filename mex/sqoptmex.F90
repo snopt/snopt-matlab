@@ -9,8 +9,7 @@
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 subroutine mexFunction(nlhs, plhs, nrhs, prhs)
-  use mxsnWork
-
+  use mxQP
   implicit none
 
   integer*4  :: nlhs, nrhs
@@ -32,48 +31,49 @@ subroutine mexFunction(nlhs, plhs, nrhs, prhs)
   !    11       Opensummary file
   !    12       Closeprint file
   !    13       Closesummary file
-  !    14
+  !    14       Set workspace
   !    15       Screen on
   !    16       Screen off
   !
-  ! 13 Dec 2013: Current version.
-  ! 01 May 2015: Added ability to modify initial amount of workspace
-  ! 09 Nov 2015: Added states, iteration counts as output
+  ! 15 Feb 2017: Current version.
   !=====================================================================
   ! Matlab
   mwPointer        :: mxGetN, mxGetPr
-  integer          :: mxIsChar
+  mwSize           :: dim
+  integer*4        :: mxIsChar
   double precision :: mxGetScalar
 
   ! SQOPT
   character        :: filename*80
-  integer          :: info, iOpt, strlen
+  integer          :: iOpt, strlen
   double precision :: rOpt, rleniw, rlenrw
   external         :: sqInit
 
   ! Get option.
-  if (nrhs < 1) call mexErrMsgIdAndTxt('SNOPT:InputArg','Need an option input argument')
+  if (nrhs < 1) call mexErrMsgIdAndTxt('SQOPT:InputArg','Need an option input argument')
   rOpt = mxGetScalar(prhs(1))
   iOpt = rOpt
 
-  call mexAtExit( resetSNOPT )
+  call mexAtExit(resetSQOPT)
 
 
   ! Deal with on/off screen, file, summary files first.
   if (iOpt == snOpenP) then
 
-     if (nrhs /= 2) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong number of input arguments')
+     if (nrhs /= 2) &
+          call mexErrMsgIdAndTxt('SQOPT:InputArg','Wrong number of input arguments')
 
-     info = mxIsChar(prhs(2))
-     if (info /= 1) call mexErrMsgIdAndTxt('SNOPT:InputArg','Need a filename string')
+     if (mxIsChar(prhs(2)) /= 1) &
+          call mexErrMsgIdAndTxt('SQOPT:InputArg','Need a filename string')
 
      strlen = mxGetN(prhs(2))
-     if (strlen > 80) call mexErrMsgIdAndTxt('SNOPT:InputArg','Print filename is too long')
+     if (strlen > 80) call mexErrMsgIdAndTxt('SQOPT:InputArg','Print filename is too long')
 
      if (strlen > 0) then
-        call mxGetString(prhs(2), filename, strlen)
+        dim = strlen
+        call mxGetString(prhs(2), filename, dim)
      else
-        call mexErrMsgIdAndTxt('SNOPT:InputArg','Empty print filename')
+        call mexErrMsgIdAndTxt('SQOPT:InputArg','Empty print filename')
      end if
 
      if (printOpen) close(iPrint)
@@ -84,18 +84,19 @@ subroutine mexFunction(nlhs, plhs, nrhs, prhs)
 
   else if (iOpt == snOpenS) then
 
-     if (nrhs /= 2) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong number of input arguments')
+     if (nrhs /= 2) call mexErrMsgIdAndTxt('SQOPT:InputArg','Wrong number of input arguments')
 
-     info = mxIsChar(prhs(2))
-     if (info /= 1) call mexErrMsgIdAndTxt('SNOPT:InputArg','Need a filename string')
+     if (mxIsChar(prhs(2)) /= 1) &
+          call mexErrMsgIdAndTxt('SQOPT:InputArg','Need a filename string')
 
      strlen = mxGetN(prhs(2))
-     if (strlen > 80) call mexErrMsgIdAndTxt('SNOPT:InputArg','Summary filename is too long')
+     if (strlen > 80) call mexErrMsgIdAndTxt('SQOPT:InputArg','Summary filename is too long')
 
      if (strlen > 0) then
-        call mxGetString(prhs(2), filename, strlen)
+        dim = strlen
+        call mxGetString(prhs(2), filename, dim)
      else
-        call mexErrMsgIdAndTxt('SNOPT:InputArg','Empty summary filename')
+        call mexErrMsgIdAndTxt('SQOPT:InputArg','Empty summary filename')
      end if
 
      if (summOpen) close(iSumm)
@@ -129,7 +130,7 @@ subroutine mexFunction(nlhs, plhs, nrhs, prhs)
      lenrw  = rlenrw
 
      if (leniw < 500 .or. lenrw < 500) &
-          call mexErrMsgIdAndTxt('SNOPT:Workspace','Workspace size must be at least 500')
+          call mexErrMsgIdAndTxt('SQOPT:Workspace','Workspace size must be at least 500')
      return
 
   end if
@@ -156,12 +157,12 @@ subroutine mexFunction(nlhs, plhs, nrhs, prhs)
      callType = systemCall
 
   else if (iOpt == snSetXX .or. &
-            iOpt == snSetIX .or. &
-            iOpt == snSetRX .or. &
-            iOpt == snGetXX .or. &
-            iOpt == snGetCX .or. &
-            iOpt == snGetIX .or. &
-            iOpt == snGetRX) then
+           iOpt == snSetIX .or. &
+           iOpt == snSetRX .or. &
+           iOpt == snGetXX .or. &
+           iOpt == snGetCX .or. &
+           iOpt == snGetIX .or. &
+           iOpt == snGetRX) then
 
      callType = userCall
      call snmxOptions(iOpt, nlhs, plhs, nrhs, prhs)
@@ -174,7 +175,8 @@ subroutine mexFunction(nlhs, plhs, nrhs, prhs)
      callType = systemCall
 
   else if (iOpt == snEnd) then
-     call resetSNOPT
+
+     call resetSQOPT
 
   end if
 
@@ -184,17 +186,17 @@ end subroutine mexFunction
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-subroutine sqmxSolve (nlhs, plhs, nrhs, prhs)
-  use mxsnWork
-
+subroutine sqmxSolve(nlhs, plhs, nrhs, prhs)
+  use mxQP
   implicit none
+
   integer*4  :: nlhs, nrhs
   mwPointer  :: prhs(*), plhs(*)
   !---------------------------------------------------------------------
   ! Solve the problem
   ! The matlab call iss
   !   [x, fval, exit, itn, y ] =
-  !       qpsolve (Hx, c, A, b, Aeq, beq, lb, ub, x0)
+  !       qpsolve(Hx, c, A, b, Aeq, beq, lb, ub, x0)
   !
   ! where
   !   Hx        is a user-defined subroutine to compute H*x
@@ -207,7 +209,8 @@ subroutine sqmxSolve (nlhs, plhs, nrhs, prhs)
   ! Matlab
   mwPointer        :: mxDuplicateArray, mxGetM, mxGetN, mxGetPr, &
                       mxCreateDoubleMatrix, mxCreateDoubleScalar
-  integer          :: mxIsChar, mxIsClass, mxIsEmpty
+  mwSize           :: dimx, dimy
+  integer*4        :: mxIsChar, mxIsClass, mxIsEmpty
   double precision :: mxGetScalar
 
   ! SQOPT
@@ -215,163 +218,99 @@ subroutine sqmxSolve (nlhs, plhs, nrhs, prhs)
   integer          :: Errors, info, i1, i2, strlen
   integer          :: iObj, m, n, nnH, ncObj, neA, &
                       mincw, miniw, minrw, nInf, nS
-  double precision :: rinfo, Obj, ObjAdd, sInf
-
-  integer,         parameter   :: nNames = 1
-  character*8      :: Names(1)
+  double precision :: Obj, ObjAdd, sInf
 
   external         :: sqopt, matlabHx
 
-  double precision, parameter   :: infBnd = 1.0d+20
+  integer,          parameter :: izero = 0
+  double precision, parameter :: zero = 0.0d+0, infBnd = 1.0d+20
+
+  integer,         parameter   :: nNames = 1
+  character*8                  :: Names(1)
 
 
   ! Check number of input and output arguments.
-  if (nrhs /= 15) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong number of input arguments')
+  if (nrhs /= 20) &
+       call mexErrMsgIdAndTxt('SQOPT:InputArg','Wrong number of input arguments')
+
+
+  !-----------------------------------------------------------------------------
+  ! Start option
+  !-----------------------------------------------------------------------------
+  if (mxIsChar(prhs(2)) /= 1) &
+       call mexErrMsgIdAndTxt('SQOPT:InputArg','Wrong input type for start')
+  dimx = min(8,mxGetN(prhs(2)))
+  call mxGetString(prhs(2), start, dimx)
 
 
   !---------------------------------------------------------------------
   ! Problem name
   !---------------------------------------------------------------------
-  info = mxIsChar (prhs(2))
-  if (info /= 1) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong input type for problem name')
-
-  strlen = mxGetN(prhs(2))
-  if (strlen > 8) strlen = 8
-
+  if (mxIsChar(prhs(3)) /= 1) &
+       call mexErrMsgIdAndTxt('SQOPT:InputArg','Wrong input type for problem name')
   probName = ''
-  call mxGetString(prhs(2), probName, strlen)
+  if (mxGetN(prhs(3)) > 0) then
+     dimx = min(8,mxGetN(prhs(3)))
+     call mxGetString(prhs(3), probName, dimx)
+  end if
 
 
   !---------------------------------------------------------------------
   ! Number of constraints and variables
   !---------------------------------------------------------------------
-  m   = mxGetScalar(prhs(3))
-  n   = mxGetScalar(prhs(4))
-  nnH = n
+  m   = mxGetScalar(prhs(4))
+  n   = mxGetScalar(prhs(5))
+
+  nnH   = n
+  neA   = mxGetScalar(prhs(13))
+  ncObj = mxGetM(prhs(7))
+
+
+  call allocSQOPT(n, m, nnH, ncObj, neA)
 
 
   !---------------------------------------------------------------------
   ! Hessian matrix
   !---------------------------------------------------------------------
-  info = mxIsClass(prhs(5), 'function_handle')
-  if (info /= 1) call mexErrMsgIdAndTxt('SNOPT:FunArg','Wrong input type for Hx')
-  HxHandle = mxDuplicateArray(prhs(5))
+  if (mxIsClass(prhs(6), 'function_handle') /= 1) &
+       call mexErrMsgIdAndTxt('SQOPT:FunArg','Wrong input type for Hx')
+  HxHandle = mxDuplicateArray(prhs(6))
 
 
   !---------------------------------------------------------------------
   ! Linear term of objective
   !---------------------------------------------------------------------
-  if (mxIsEmpty(prhs(6)) > 0) then
-     ncObj = 0
-     allocate(cObj(1))
-  else
-     ncObj = mxGetM(prhs(6))
-     allocate(cObj(ncObj))
-
-     call checkRow(prhs(6), ncObj, 'cObj')
-     call checkCol(prhs(6),     1, 'cObj')
-
-     call mxCopyPtrToReal8(mxGetPr(prhs(6)), cObj(1:ncObj), ncObj)
-  end if
+  call copyMxArrayR('cObj', ncObj, prhs(7), cObj, zero)
 
 
   !---------------------------------------------------------------------
-  ! Allocate SQOPT space
+  ! Copy x info
   !---------------------------------------------------------------------
-  allocate(x(n+m), hs(n+m), hEtype(n+m), pi(m), rc(n+m))
-  allocate(bl(n+m), bu(n+m))
-
-  x(1:n+m)      = 0.0
-  hs(1:n+m)     = 0
-  hEtype(1:n+m) = 0
-
-  if (.not. mxIsEmpty(prhs(7)) > 0) then
-     call checkRow(prhs(7), n, 'x0')
-     call checkCol(prhs(7), 1, 'x0')
-     call mxCopyPtrToReal8(mxGetPr(prhs(7)), x(1:n), n)
-  end if
-
-
-  !---------------------------------------------------------------------
-  ! Set bounds on variables
-  !---------------------------------------------------------------------
-  ! Lower and upper bounds on x
-  ! Check dimensions of lower and upper bounds on x
-  if (mxIsEmpty(prhs(8)) > 0) then
-     bl(1:n) = -infBnd
-  else
-     call checkRow(prhs(8), n, 'lb')
-     call checkCol(prhs(8), 1, 'lb')
-     call mxCopyPtrToReal8(mxGetPr(prhs(8)), bl(1:n), n)
-  end if
-
-  if (mxIsEmpty(prhs(9)) > 0) then
-     bu(1:n) = infBnd
-  else
-     call checkRow(prhs(9), n, 'ub')
-     call checkCol(prhs(9), 1, 'ub')
-     call mxCopyPtrToReal8(mxGetPr(prhs(9)), bu(1:n), n)
-  end if
+  x(n+1:n+m) = zero
+  call copyMxArrayR('x0',     n, prhs(8),   x(1:n), zero)
+  call copyMxArrayR('xl',     n, prhs(9),  bl(1:n), -infBnd)
+  call copyMxArrayR('xu',     n, prhs(10), bu(1:n), infBnd)
+  call copyMxArrayI('xstate', n, prhs(11), hs(1:n), izero)
+  call copyMxArrayR('xmul',   n, prhs(12), rc(1:n), zero)
 
 
   !---------------------------------------------------------------------
   ! Get the linear constraint matrix
   !---------------------------------------------------------------------
-  neA = mxGetScalar(prhs(10))
-  if (neA > 0) then
-     call checkRow(prhs(11), neA, 'indA')
-     call checkCol(prhs(11),   1, 'indA')
-
-     call checkRow(prhs(12), n+1, 'locA')
-     call checkCol(prhs(12),   1, 'locA')
-
-     call checkRow(prhs(13), neA, 'valA')
-     call checkCol(prhs(13),   1, 'valA')
-
-     allocate(indA(neA), valA(neA), locA(n+1))
-     allocate(rindA(neA), rlocA(n+1))
-
-     call mxCopyPtrToReal8(mxGetPr(prhs(11)), rindA, neA)
-     call mxCopyPtrToReal8(mxGetPr(prhs(12)), rlocA, n+1)
-     call mxCopyPtrToReal8(mxGetPr(prhs(13)), valA, neA)
-
-     indA(1:neA) = rindA(1:neA)
-     locA(1:n+1) = rlocA(1:n+1)
-
-     deallocate(rindA, rlocA)
-  else
-     neA  = 0
-     allocate(indA(1), locA(1), valA(1))
-  end if
+  call copyMxArrayI('indA', neA, prhs(14), indA, izero)
+  call copyMxArrayI('locA', n+1, prhs(15), locA, izero)
+  call copyMxArrayR('valA', neA, prhs(16), valA, zero)
 
 
   !---------------------------------------------------------------------
   ! Set the constraint bounds
   !---------------------------------------------------------------------
-  if (m > 0) then
-     i1 = 1+n
-     i2 = m+n
-
-     ! Check dimension of lA and uA
-     if (mxIsEmpty(prhs(14)) > 0) then
-        bl(i1:i2) = -infBnd
-     else
-        call checkRow(prhs(14), m, 'al')
-        call checkCol(prhs(14), 1, 'al')
-        call mxCopyPtrToReal8(mxGetPr(prhs(14)), bl(i1:i2), m)
-     end if
-
-     if (mxIsEmpty(prhs(15)) > 0) then
-        bu(i1:i2) = infBnd
-     else
-        call checkRow(prhs(15), m, 'au')
-        call checkCol(prhs(15), 1, 'au')
-        call mxCopyPtrToReal8(mxGetPr(prhs(15)), bu(i1:i2), m)
-     end if
-  end if
-
-  iObj   = 0
-  ObjAdd = 0.0
+  i1 = n+1
+  i2 = n+m
+  call copyMxArrayR('al',     m, prhs(17), bl(i1:i2), -infBnd)
+  call copyMxArrayR('au',     m, prhs(18), bu(i1:i2), infBnd)
+  call copyMxArrayI('astate', m, prhs(19), hs(i1:i2), izero)
+  call copyMxArrayR('amul',   m, prhs(20), rc(i1:i2), zero)
 
 
   !---------------------------------------------------------------------
@@ -380,8 +319,8 @@ subroutine sqmxSolve (nlhs, plhs, nrhs, prhs)
 100 if (.not. memCall) then
      call sqMem &
           (INFO, m, n, neA, ncObj, nnH, &
-            mincw, miniw, minrw, &
-            cw, lencw, iw, leniw, rw, lenrw)
+           mincw, miniw, minrw,         &
+           cw, lencw, iw, leniw, rw, lenrw)
      memCall = .true.
 
      if (leniw .le. miniw) then
@@ -427,78 +366,75 @@ subroutine sqmxSolve (nlhs, plhs, nrhs, prhs)
   !---------------------------------------------------------------------
   ! Solve the problem
   !---------------------------------------------------------------------
-  Start  = 'Cold'  ! cold start
+  iObj   = 0
+  ObjAdd = 0.0
+  hEtype(1:n+m) = 0
 
-  call sqopt &
-         (Start, matlabHx, m, n, neA, nNames, &
-           ncObj, nnH, iObj, ObjAdd, probName, &
-           valA, indA, locA, bl, bu, cObj, Names, &
-           hEtype, hs, x, pi, rc, &
-           INFO, mincw, miniw, minrw, nS, nInf, sInf, Obj, &
-           cw, lencw, iw, leniw, rw, lenrw, &
-           cw, lencw, iw, leniw, rw, lenrw)
+  call sqopt                                            &
+       (Start, matlabHx, m, n, neA, nNames,             &
+        ncObj, nnH, iObj, ObjAdd, trim(probName),       &
+        valA, indA, locA, bl, bu, cObj, Names,          &
+        hEtype, hs, x, pi, rc,                          &
+        INFO, mincw, miniw, minrw, nS, nInf, sInf, Obj, &
+        cw, lencw, iw, leniw, rw, lenrw,                &
+        cw, lencw, iw, leniw, rw, lenrw)
 
   if (INFO == 82 .or. INFO == 83 .or. INFO == 84) then
      memCall = .false.
      go to 100
   end if
 
-  !---------------------------------------------------------------------
+
+  !-----------------------------------------------------------------------------
   ! Set output
-  !---------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
   if (nlhs > 0) then
-     plhs(1) = mxCreateDoubleMatrix (n, 1, 0)
-     call mxCopyReal8ToPtr(x, mxGetPr(plhs(1)), n)
+     dimx  = n
+     dimy  = 1
+
+     plhs(1) = mxCreateDoubleMatrix(dimx, dimy, mxREAL)
+     call mxCopyReal8ToPtr(x(1:n), mxGetPr(plhs(1)), dimx)
   end if
 
-
-  ! Constraints
-  if (nlhs > 1) plhs(2) = mxCreateDoubleScalar (Obj)
-
+  ! Final objective
+  if (nlhs > 1) plhs(2) = mxCreateDoubleScalar(Obj)
 
   ! Exit flag
-  rinfo = info
-  if (nlhs > 2) plhs(3) = mxCreateDoubleScalar (rinfo)
+  if (nlhs > 2) plhs(3) = mxCreateDoubleScalar(dble(info))
 
-  ! Multipliers for bounds
-  if (nlhs > 3) then
-     plhs(4) = mxCreateDoubleMatrix (m, 1, 0)
-     call mxCopyReal8ToPtr(pi, mxGetPr(plhs(4)), m)
-  end if
+  ! Iterations
+  if (nlhs > 3) plhs(4) = mxCreateDoubleScalar(dble(iw(421)))
 
-
-  ! Multipliers for linear inequalities
+  ! Multipliers
   if (nlhs > 4) then
-     plhs(5) = mxCreateDoubleMatrix (n, 1, 0)
-     call mxCopyReal8ToPtr(rc(1:n), mxGetPr(plhs(5)), n)
+     dimx = n+m
+     dimy = 1
+     plhs(5) = mxCreateDoubleMatrix(dimx, dimy, mxREAL)
+     call mxCopyReal8ToPtr(rc(1:n+m), mxGetPr(plhs(5)), dimx)
   end if
 
   ! States
-  if ( nlhs > 5 ) then
-     plhs(6) = mxCreateDoubleMatrix (n+m, 1, 0)
-     call mxCopyReal8ToPtr(real(hs,8), mxGetPr(plhs(6)), n+m)
+  if (nlhs > 5) then
+     dimx = n+m
+     dimy = 1
+     plhs(6) = mxCreateDoubleMatrix(dimx, dimy, mxREAL)
+     call mxCopyReal8ToPtr(dble(hs(1:n+m)), mxGetPr(plhs(6)), dimx)
   end if
-
-  ! Number of iterations
-  rinfo = iw(421)
-  if (nlhs > 6) plhs(7) = mxCreateDoubleScalar(rinfo)
 
 
   ! Deallocate memory
-  if (HxHandle /= 0) call mxDestroyArray(HxHandle)
-  HxHandle = 0
-
   call deallocSQOPT
 
 end subroutine sqmxSolve
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-subroutine snmxOptions (iOpt, nlhs, plhs, nrhs, prhs)
-  use mxsnWork
-
+subroutine snmxOptions(iOpt, nlhs, plhs, nrhs, prhs)
+  use mxQP
   implicit none
-  integer*4  :: iOpt, nlhs, nrhs
+
+  integer    :: iOpt
+  integer*4  :: nlhs, nrhs
   mwPointer  :: prhs(*), plhs(*)
   !---------------------------------------------------------------------
   ! Set/get options.
@@ -506,6 +442,7 @@ subroutine snmxOptions (iOpt, nlhs, plhs, nrhs, prhs)
   ! Matlab
   mwPointer        :: mxGetN, mxGetPr, mxCreateDoubleScalar, &
                       mxCreateString
+  mwSize           :: dim
   double precision :: mxGetScalar
 
   character        :: buffer*50, cvalue*8
@@ -518,68 +455,69 @@ subroutine snmxOptions (iOpt, nlhs, plhs, nrhs, prhs)
 
 
   if (iOpt == snSetIX .or. iOpt == snSetRX) then
-     if (nrhs /= 3) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong number of input arguments')
+     if (nrhs /= 3) call mexErrMsgIdAndTxt('SQOPT:InputArg','Wrong number of input arguments')
   else
-     if (nrhs /= 2) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong number of input arguments')
+     if (nrhs /= 2) call mexErrMsgIdAndTxt('SQOPT:InputArg','Wrong number of input arguments')
   end if
 
 
   ! Get string
   strlen = mxGetN(prhs(2))
-  if (strlen > 50) call mexErrMsgIdAndTxt('SNOPT:InputArg','Option string is too long')
+  if (strlen > 50) call mexErrMsgIdAndTxt('SQOPT:InputArg','Option string is too long')
 
   if (strlen > 0) then
-     call mxGetString(prhs(2), buffer, strlen)
+     dim = strlen
+     call mxGetString(prhs(2), buffer, dim)
   else
-     call mexErrMsgIdAndTxt('SNOPT:InputArg','Empty option string')
+     call mexErrMsgIdAndTxt('SQOPT:InputArg','Empty option string')
   end if
 
 
   if      (iOpt == snSetXX) then
-     call sqSet (buffer, iPrint, iSumm, Errors, &
-                  cw, lencw, iw, leniw, rw, lenrw)
+     call sqSet(buffer, iPrint, iSumm, Errors, &
+                cw, lencw, iw, leniw, rw, lenrw)
 
   else if (iOpt == snSetIX) then
 
      rvalue = mxGetScalar(prhs(3))
      ivalue = rvalue
 
-     call sqSetI (buffer, ivalue, iPrint, iSumm, Errors, &
-                   cw, lencw, iw, leniw, rw, lenrw)
+     call sqSetI(buffer, ivalue, iPrint, iSumm, Errors, &
+                 cw, lencw, iw, leniw, rw, lenrw)
 
   else if (iOpt == snSetRX) then
 
      rvalue = mxGetScalar(prhs(3))
 
-     call sqSetR (buffer, rvalue, iPrint, iSumm, Errors, &
-                   cw, lencw, iw, leniw, rw, lenrw)
+     call sqSetR(buffer, rvalue, iPrint, iSumm, Errors, &
+                 cw, lencw, iw, leniw, rw, lenrw)
 
   else if (iOpt == snGetXX) then
 
-     ivalue  = sqGet (buffer, Errors, cw, lencw, iw, leniw, rw, lenrw)
+     ivalue  = sqGet(buffer, Errors, cw, lencw, iw, leniw, rw, lenrw)
 
      rvalue  = ivalue
      plhs(1) = mxCreateDoubleScalar (rvalue)
 
   else if (iOpt == snGetCX) then
 
-     call sqGetC (buffer, cvalue, Errors, &
-                   cw, lencw, iw, leniw, rw, lenrw)
+     call sqGetC(buffer, cvalue, Errors, &
+                 cw, lencw, iw, leniw, rw, lenrw)
 
      plhs(1) = mxCreateString(cvalue)
 
   else if (iOpt == snGetIX) then
 
-     call sqGetI (buffer, ivalue, Errors, &
-                   cw, lencw, iw, leniw, rw, lenrw)
+     call sqGetI(buffer, ivalue, Errors, &
+                 cw, lencw, iw, leniw, rw, lenrw)
 
      rvalue = ivalue
      plhs(1) = mxCreateDoubleScalar (rvalue)
 
   else if (iOpt == snGetRX) then
 
-     call sqGetR (buffer, rvalue, Errors, &
-                   cw, lencw, iw, leniw, rw, lenrw)
+     call sqGetR(buffer, rvalue, Errors, &
+                 cw, lencw, iw, leniw, rw, lenrw)
 
      plhs(1) = mxCreateDoubleScalar (rvalue)
 
@@ -589,17 +527,17 @@ end subroutine snmxOptions
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-subroutine snmxSpecs (nlhs, plhs, nrhs, prhs)
-  use mxsnWork
-
+subroutine snmxSpecs(nlhs, plhs, nrhs, prhs)
+  use mxQP
   implicit none
-  integer*4  :: nlhs, nrhs
-  mwPointer  :: prhs(*), plhs(*)
+
+  integer*4 :: nlhs, nrhs
+  mwPointer :: prhs(*), plhs(*)
   !---------------------------------------------------------------------
   ! Read specs file.
   !---------------------------------------------------------------------
-  ! Matlab
   mwPointer        :: mxCreateDoubleScalar, mxGetN
+  mwSize           :: dimx
 
   character        :: filename*120
   integer          :: info, strlen
@@ -608,17 +546,17 @@ subroutine snmxSpecs (nlhs, plhs, nrhs, prhs)
   external         :: sqSpec
 
 
-  if (nrhs /= 2) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong number of input arguments')
-  if (nlhs /= 1) call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong number of output arguments')
-
+  if (nrhs /= 2) call mexErrMsgIdAndTxt('SQOPT:InputArg','Wrong number of input arguments')
+  if (nlhs /= 1) call mexErrMsgIdAndTxt('SQOPT:InputArg','Wrong number of output arguments')
 
   strlen = mxGetN(prhs(2))
-  if (strlen > 120) call mexErrMsgIdAndTxt('SNOPT:InputArg','Specs filename is too long')
+  if (strlen > 120) call mexErrMsgIdAndTxt('SQOPT:InputArg','Specs filename is too long')
 
   if (strlen > 0) then
-     call mxGetString(prhs(2), filename, strlen)
+     dimx = strlen
+     call mxGetString(prhs(2), filename, dimx)
   else
-     call mexErrMsgIdAndTxt('SNOPT:InputArg','Empty spc filename')
+     call mexErrMsgIdAndTxt('SQOPT:InputArg','Empty spc filename')
   end if
 
   open(iSpecs, file=filename, status='unknown')
@@ -640,10 +578,9 @@ end subroutine snmxSpecs
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-subroutine matlabHx (nnH, x, Hx, Status, &
-                      cu, lencu, iu, leniu, ru, lenru)
-
-  use mxsnWork, only : HxHandle, checkCol, checkRow
+subroutine matlabHx(nnH, x, Hx, Status, cu, lencu, iu, leniu, ru, lenru)
+  use mxsnWork, only : checkCol, checkRow, mxREAL
+  use mxQP,     only : HxHandle
   implicit none
 
   integer          :: Status, nnH, lencu, leniu, lenru, iu(leniu)
@@ -653,30 +590,30 @@ subroutine matlabHx (nnH, x, Hx, Status, &
   !---------------------------------------------------------------------
   ! Matlab callback to evaluate H*x.
   !---------------------------------------------------------------------
-  integer*4 :: nlhs, nrhs, nlhs1, nrhs1
+  integer*4 :: nlhs, nrhs
   mwPointer :: prhs(2), plhs(1)
   mwPointer :: mxCreateDoubleMatrix, mxGetPr, mxDuplicateArray
+  mwSize    :: dimx, dimy
 
   nlhs = 1
   nrhs = 2
 
   prhs(1) = mxDuplicateArray(HxHandle)
 
-  prhs(2) = mxCreateDoubleMatrix (nnH, 1, 0)
-  call mxCopyReal8ToPtr(x, mxGetPr(prhs(2)), nnH)
+  dimx = nnH
+  dimy = 1
+  prhs(2) = mxCreateDoubleMatrix (dimx, dimy, mxREAL)
+  call mxCopyReal8ToPtr(x, mxGetPr(prhs(2)), dimx)
 
 
   ! Call Matlab: [Hx] = userHx(x)
   call mexCallMatlab(nlhs, plhs, nrhs, prhs, 'feval')
 
-  call checkRow(plhs(1), nnH, 'Hx')
-  call checkCol(plhs(1),   1, 'Hx')
-
-  call mxCopyPtrToReal8(mxGetPr(plhs(1)), Hx, nnH)
+  dimx = nnH
+  call mxCopyPtrToReal8(mxGetPr(plhs(1)), Hx, dimx)
 
   ! Destroy arrays
   call mxDestroyArray(plhs(1))
-
   call mxDestroyArray(prhs(1))
   call mxDestroyArray(prhs(2))
 
