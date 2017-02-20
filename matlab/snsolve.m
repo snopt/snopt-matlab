@@ -1,15 +1,29 @@
-function [x,fval,exitflag,lambda,states,output] = snsolve(userobj,x0,A,b,varargin)
-
-% A wrapper for snopt to make it look like fmincon.
-%   [...] = snsolve(myobj,x0,A,b)
-%   [...] = snsolve(myobj,x0,A,b,Aeq,beq)
-%   [...] = snsolve(myobj,x0,A,b,Aeq,beq,xlow,xupp)
-%   [...] = snsolve(myobj,x0,A,b,Aeq,beq,xlow,xupp,nonlcon)
-%   [...] = snsolve(myobj,x0,A,b,Aeq,beq,xlow,xupp,nonlcon,options)
+function [x,fval,exitflag,output,lambda,states] = snsolve(obj,x0,A,b,varargin)
+% function [x,fval,exitflag,output,lambda,states] = snsolve(obj,x0,A,b,varargin)
+%
+%   [...] = snsolve(obj,x0,A,b)
+%   [...] = snsolve(obj,x0,A,b,options)
+%
+%   [...] = snsolve(obj,x0,A,b,Aeq,beq)
+%   [...] = snsolve(obj,x0,A,b,Aeq,beq,options)
+%
+%   [...] = snsolve(obj,x0,A,b,Aeq,beq,xlow,xupp)
+%   [...] = snsolve(obj,x0,A,b,Aeq,beq,xlow,xupp,options)
+%
+%   [...] = snsolve(obj,x0,A,b,Aeq,beq,xlow,xupp,nonlcon)
+%   [...] = snsolve(obj,x0,A,b,Aeq,beq,xlow,xupp,nonlcon,options)
 %
 % Output from snsolve:
-%   [x,fval,exitflag,lambda,states,output] = snsolve(...)
+%   [x,fval,exitflag,output,lambda,states] = snsolve(...)
 %
+%
+% snsolve and fmincon assume problems are of the form:
+%    minimize        f(x)
+%   such that    c(x)   <= 0,
+%                c_eq(x) = 0,
+%                Ax     <= b,
+%                A_eq x  = b_eq,
+%                xlow   <= x <= xupp.
 %
 % Output:
 %   x                  solution
@@ -18,140 +32,150 @@ function [x,fval,exitflag,lambda,states,output] = snsolve(userobj,x0,A,b,varargi
 %
 %   exitflag           exit condition from SNOPT
 %
-%   lambda.lower       final multipliers for lower bounds
-%   lambda.upper       final multipliers for upper bounds
-%   lambda.ineqnonlin  final multipliers for nonlinear inequalities
-%   lambda.eqnonlin    final multipliers for nonlinear equalities
-%   lambda.ineqlin     final multipliers for linear inequalities
-%   lambda.eqlin       final multipliers for linear equalities
+%   output             is a struct with the following fields
+%                      output.info        exit code from SNOPT (same as exitflag)
+%                      output.iterations  the total number of minor iterations
+%                      output.majors      the total number of major iterations
 %
-%   states.x           final state of variables
-%   states.F           final state of slack (constraint) variables
+%   lambda             are the final multipliers
+%                      lambda.lower        lower bounds
+%                      lambda.upper        upper bounds
+%                      lambda.ineqnonlin   nonlinear inequalities
+%                      lambda.eqnonlin     nonlinear equalities
+%                      lambda.ineqlin      linear inequalities
+%                      lambda.eqlin        linear equalities
 %
-%   output.info        exit code from SNOPT (same as exitflag)
-%   output.iterations  the total number of minor iterations
-%   output.majors      the total number of major iterations
+%   states             are the final states
+%                      states.lower        lower bounds
+%                      states.upper        upper bounds
+%                      states.ineqnonlin   nonlinear inequalities
+%                      states.eqnonlin     nonlinear equalities
+%                      states.ineqlin      linear inequalities
+%                      states.eqlin        linear equalities
 %
 %
-% snsolve and fmincon assume problems are of the form:
-%    minimize    f(x)
-%   such that    c(x)   <= 0,
-%                c_eq(x) = 0,
-%                Ax     <= b,
-%                A_eq x  = b_eq,
-%                xlow   <= x <= xupp.
-%
+solveopt = 1;
 
-% Check for starting point x0.
-x0 = colvec(x0,'x0',0,0);
-n  = length(x0);
+probName   = '';
+istart     = 0;
+stopFun    = 0;
+optionsLoc = 0;
 
-% Get user-defined functions.
-nonlcon =  @dummyCon;
-if (ischar(userobj))
-  myobj = str2func(userobj);
-else
-  myobj = userobj;
-end
-F = myobj(x0);
-if length(F) == 0,
-  error('Error: userobj must return the objective function.');
-end
+% Check user-defined functions
+myobj = checkFun(obj,'SNOPT',[1]);
 
-if     nargin == 4,
-  Aeq  = [];  beq  = [];
-  xlow = [];  xupp = [];
-  c    = [];  ceq  = [];
+% Deal with options
+if nargin == 5 || nargin == 7 || nargin == 9 || nargin == 10,
+  optionsLoc = nargin - 4;
+  if isstruct(varargin{optionsLoc}),
+    options = varargin{optionsLoc};
 
-elseif nargin == 6,
-  Aeq  = varargin{1};
-  beq  = varargin{2};
-  xlow = [];  xupp = [];
-  c    = [];  ceq  = [];
-
-elseif nargin == 8,
-  Aeq      = varargin{1};
-  beq      = varargin{2};
-  xlow     = varargin{3};
-  xupp     = varargin{4};
-  c    = [];  ceq  = [];
-
-elseif nargin == 9 || nargin == 10,
-  Aeq      = varargin{1};
-  beq      = varargin{2};
-  xlow     = varargin{3};
-  xupp     = varargin{4};
-  nonlconU = varargin{5};
-
-  if (ischar(nonlconU)),
-    nonlcon = str2func(nonlconU);
-  else
-    nonlcon = nonlconU;
-  end
-
-  [c,ceq]  = feval(nonlcon,x0);
-
-else
-  error('Wrong number of input arguments')
-end
-
-% Options?
-probName = '';
-mlSTOP   = 0;
-
-if nargin == 10,
-  if isstruct(varargin{6}),
-    options = varargin{6};
+    % Name
     if isfield(options,'name'),
       probName = options.name;
     end
 
+    % Start
+    if isfield(options,'start'),
+      if strcmp(lower(options.start),'warm'),
+	istart = 1;
+      elseif strcmp(lower(options.start),'hot'),
+	istart = 2;
+      end
+    end
+
+    % Stop function
     if isfield(options,'stop'),
-      if (ischar(options.stop))
-	mlSTOP = str2func(options.stop);
+      if ischar(options.stop),
+	stopFun = str2func(options.stop);
+      elseif isa(options.stop,'function_handle'),
+	stopFun = options.stop;
       else
-	mlSTOP = options.stop;
+	error('SNOPT:InputArgs','%s.stop should be a string or function handle',inputname(options));
       end
     end
 
   else
-    error('Options struct error');
+    optionsLoc = 0;
   end
 end
 
-% Check inputs
-[mi,n0] =  size(A);
-if ( ~isempty(A) && n0 ~= n ),
-  error('Error: A has incorrect column dimension.');
-end
 
-b = colvec(b,'b',1,mi);
-if isempty(b) && ~isempty(A),
-  error('Error: b is empty, but A is not.');
-end
-if ~isempty(b) && isempty(A),
-  error('Error: b is not empty, but A is.');
-end
+x0          = colvec(x0,'x0',0,0);
+n           = length(x0);
+linear_ineq = size(A,1);
+linear_eq   = 0;
+nonlin_ineq = 0;
+nonlin_eq   = 0;
+nonlcon     = 0;
 
-[me,n0] =  size(Aeq);
-if ( ~isempty(Aeq) && n0 ~= n ),
-  error('Error: Aeq has incorrect column dimension.');
-end
+if     nargin == 4 || nargin == 5,
+  % snsolve(obj,x0,A,b)
+  % snsolve(obj,x0,A,b,options)
 
-beq = colvec(beq,'beq',1,me);
-if isempty(beq) && ~isempty(Aeq),
-  error('Error: beq is empty, but Aeq is not.');
-end
-if ~isempty(beq) && isempty(Aeq),
-  error('Error: beq is not empty, but Aeq is.');
-end
+  Aeq  = [];  beq  = [];
+  xlow = [];  xupp = [];
+  c    = [];  ceq  = [];
 
-nli = length(c);
-nle = length(ceq);
+elseif nargin == 6 || nargin == 7,
+  % snsolve(obj,x0,A,b,Aeq,beq)
+  % snsolve(obj,x0,A,b,Aeq,beq,options)
+
+  Aeq       = varargin{1};
+  beq       = varargin{2};
+  linear_eq = size(Aeq,1);
+
+  xlow = [];  xupp = [];
+  c    = [];  ceq  = [];
+
+elseif nargin == 8 || (nargin == 9 && optionsLoc ~=0),
+  % snsolve(obj,x0,A,b,Aeq,beq,xlow,xupp)
+  % snsolve(obj,x0,A,b,Aeq,beq,xlow,xupp,options)
+
+  Aeq       = varargin{1};
+  beq       = varargin{2};
+  xlow      = varargin{3};
+  xupp      = varargin{4};
+  linear_eq = size(Aeq,1);
+  c    = [];  ceq  = [];
+
+elseif nargin == 9 || nargin == 10,
+  % snsolve(obj,x0,A,b,Aeq,beq,xlow,xupp,nonlcon)
+  % snsolve(obj,x0,A,b,Aeq,beq,xlow,xupp,nonlcon,options)
+
+  Aeq       = varargin{1};
+  beq       = varargin{2};
+  xlow      = varargin{3};
+  xupp      = varargin{4};
+  nonlc     = varargin{5};
+  linear_eq = size(Aeq,1);
+
+  nonlcon  = checkFun(nonlc,'SNOPT');
+
+  narg = nargout(nonlcon);
+  if narg == 4,
+    [c,ceq,J,Jeq] = nonlcon(x0);
+    nonlin_ineq   = size(c,1);
+    nonlin_eq     = size(ceq,1);
+
+    J = J';  Jeq = Jeq';
+
+  elseif narg == 2,
+    [c,ceq]  = nonlcon(x0);
+    nonlin_ineq   = size(c,1);
+    nonlin_eq     = size(ceq,1);
+
+  else
+    error('SNOPT:InputArgs','Wrong number of output arguments for %s',inputname(nonlc));
+  end
+
+else
+  error('SNOPT:InputArgs','Wrong number of input arguments for snsolve')
+end
 
 
 % Set total number of constraints (size of F(x)).
-nCon = 1 + nli + nle + mi + me;
+nCon = 1 + nonlin_ineq + nonlin_eq + linear_ineq + linear_eq;
 
 % snoptA problem format:
 %    minimize    F_obj (x)
@@ -159,14 +183,14 @@ nCon = 1 + nli + nle + mi + me;
 %              l   <=   x  <= u
 %
 %           [ F_obj   ]            [ F_0'     ]   [  0    ]     1
-%           [ c(x)    ]            [ c'(x)    ]   [  0    ]     nli
-%           [ c_eq(x) ]            [ c_eq'(x) ]   [  0    ]     nle
-%   F(x) =  [ Ax      ]    F'(x) = [ 0        ] + [  A    ]     mi
-%           [ A_eq x  ]            [ 0        ]   [  A_eq ]     me
+%           [ c(x)    ]            [ c'(x)    ]   [  0    ]     nonlin_ineq
+%           [ c_eq(x) ]            [ c_eq'(x) ]   [  0    ]     nonlin_eq
+%   F(x) =  [ Ax      ]    F'(x) = [ 0        ] + [  A    ]     linear_ineq
+%           [ A_eq x  ]            [ 0        ]   [  A_eq ]     linear_eq
 %                                    "G(x)"         "A"
 
-[iAfun,jAvar,Aij] = find( [ zeros(1+nli+nle,n); A; Aeq ]);
-[iGfun,jGvar,Gij] = find( [ ones(1+nli+nle,n); zeros(mi+me,n) ]);
+[iAfun,jAvar,Aij] = find([zeros(1+nonlin_ineq+nonlin_eq,n); A; Aeq]);
+[iGfun,jGvar,~]   = find([ones(1+nonlin_ineq+nonlin_eq,n); zeros(linear_ineq+linear_eq,n)]);
 
 iAfun   = colvec(iAfun,'iAfun',1,0);
 jAvar   = colvec(jAvar,'jAvar',1,0);
@@ -174,52 +198,147 @@ Aij     = colvec(Aij,'Aij',1,0);
 if length(Aij) ~= length(iAfun) || ...
       length(Aij) ~= length(jAvar) || ...
       length(iAfun) ~= length(jAvar),
-  error('Error: A, iAfun, jAvar must have the same length.');
+  error('SNOPT:InputArgs','A, iAfun, jAvar must have the same length.');
 end
 
 iGfun   = colvec(iGfun,'iGfun',1,0);
 jGvar   = colvec(jGvar,'jGvar',1,0);
 if length(iGfun) ~= length(jGvar),
-  error('Error: iGfun and jGvar must have the same length.');
+  error('SNOPT:InputArgs','iGfun and jGvar must have the same length.');
 end
 
-xmul    =  zeros(n,1);
-xstate  =  zeros(n,1);
-Fmul    =  zeros(nCon,1);
-Fstate  =  zeros(nCon,1);
 ObjAdd  =  0;
 ObjRow  =  1;
-Flow    = [ -inf; -inf*ones(nli,1); zeros(nle,1); -inf*ones(mi,1); beq ];
-Fupp    = [  inf; zeros(nli,1); zeros(nle,1); b; beq ];
+Flow    = [ -inf;
+	    -inf*ones(nonlin_ineq,1);
+	    zeros(nonlin_eq,1);
+	    -inf*ones(linear_ineq,1);
+	    beq ];
+Fupp    = [  inf;
+	     zeros(nonlin_ineq,1);
+	     zeros(nonlin_eq,1);
+	     b;
+	     beq ];
 
 
-% Solve the problem!
-solveopt = 1;
+if isa(nonlcon,'function_handle'),
+  [x,F,exitflag,xmul,Fmul, ...
+   xstate,Fstate,itn,mjritn] = snoptmex(solveopt, ...
+					istart, stopFun, probName, ...
+					@(x,needF,needG)snfun(x,needF,needG,myobj, ...
+						  nonlcon,iGfun,jGvar), ...
+					x0, ...
+					xlow, xupp, [], [], ...
+					Flow, Fupp, [], [], ...
+					ObjAdd, ObjRow, ...
+					Aij, iAfun, jAvar, iGfun, jGvar);
+else
+  [x,F,exitflag,xmul,Fmul, ...
+   xstate,Fstate,itn,mjritn] = snoptmex(solveopt, ...
+					istart, stopFun, probName, ...
+					@(x,needF,needG)snfun(x,needF,needG,myobj), ...
+					x0, ...
+					xlow, xupp, [], [], ...
+					Flow, Fupp, [], [], ...
+					ObjAdd, ObjRow, ...
+					Aij, iAfun, jAvar, iGfun, jGvar);
+end
 
-[x,F,exitflag,xmul,Fmul,xstate,Fstate,itn,mjritn] = snoptmex( solveopt, x0, ...
-						  xlow, xupp, xmul, xstate, ...
-						  Flow, Fupp, Fmul, Fstate, ...
-						  ObjAdd, ObjRow, ...
-						  Aij, iAfun, jAvar, ...
-						  iGfun, jGvar, ...
-						  myobj, nonlcon, probName, mlSTOP );
+fval              = F(1);
+zero              = zeros(n,1);
+states.x          = xstate(1:n);
+xmul(1:n)
+zero
+lambda.lower      = max(xmul(1:n),zero);
+lambda.upper      = min(xmul(1:n),zero);
 
-fval              = feval(myobj,x);
-lambda.lower      = xmul;
-lambda.upper      = xmul;
-lambda.ineqnonlin = Fmul(2:nli+1);
-lambda.eqnonlin   = Fmul(nli+2:nli+nle+1);
-lambda.ineqlin    = Fmul(nli+nle+2:nli+nle+mi+1);
-lambda.eqlin      = Fmul(nli+nle+mi+2:nCon);
+if nonlin_ineq > 0,
+  i1 = 1+1; i2 = i1-1 + nonlin_ineq;
+  lambda.ineqnonlin = Fmul(i1:i2);
+  states.ineqnonlin = Fstate(i1:i2);
+else
+  lambda.ineqnonlin = [];
+  states.ineqnonlin = [];
+end
 
-states.x          = xstate;
-states.F          = Fstate;
+if nonlin_eq > 0,
+  i1 = 1+nonlin_ineq; i2 = i1-1 + nonlin_eq;
+  lambda.eqnonlin = Fmul(i1:i2);
+  states.eqnonlin = Fmul(i1:i2);
+else
+  lambda.eqnonlin = [];
+  states.eqnonlin = [];
+end
+
+if linear_ineq > 0,
+  i1 = 1+nonlin_ineq+nonlin_eq; i2 = i1-1 + linear_ineq;
+  lambda.ineqlin = Fmul(i1:i2);
+  states.ineqlin = Fmul(i1:i2);
+else
+  lambda.ineqlin = [];
+  states.ineqlin = [];
+end
+
+if linear_eq > 0,
+  i1 = 1+nonlin_ineq+nonlin_eq+linear_ineq; i2 = i1-1 + linear_eq;
+  lambda.eqlin = Fmul(i1:i2);
+  states.eqlin = Fmul(i1:i2);
+else
+  lambda.eqlin = [];
+  states.eqlin = [];
+end
 
 output.info       = exitflag;
 output.iterations = itn;
 output.majors     = mjritn;
 
 
-function [c,ceq] = dummyCon(x)
 
-c = []; ceq = [];
+function [F,G] = snfun(x,needF,needG,obj,varargin)
+% Wrapper for obj and nonlcon in snsolve call.
+
+% Compute objective function and gradients
+fobj = []; gobj = [];
+
+if needG > 0,
+  if nargout(obj) == 2,
+    [fobj,gobj] = obj(x);
+  else
+    if needF > 0,
+      fobj = obj(x);
+    end
+  end
+else
+  fobj = obj(x);
+end
+
+% Compute constraint functions and gradients
+c    = []; ceq  = [];
+J    = []; Jeq  = [];
+
+if nargin == 7,
+  nonlcon = varargin{1};
+  iGfun   = varargin{2};
+  jGvar   = varargin{3};
+
+  if needG > 0,
+    if nargout(nonlcon) == 4,
+      [c,ceq,J,Jeq] = nonlcon(x);
+    else
+      if needF > 0,
+	[c,ceq] = nonlcon(x);
+      end
+    end
+  else
+    [c,ceq] = nonlcon(x);
+  end
+end
+
+F = [ fobj; c; ceq ];
+G = [ gobj; J; Jeq ];
+
+% Convert G to vector format to match SNOPTA and (iGfun,jGvar)
+[~,n] = size(G);
+if n > 1,
+  G = snfindG(iGfun,jGvar,G);
+end
