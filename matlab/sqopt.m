@@ -1,4 +1,5 @@
-function [x,Obj,INFO,lambda,states,output] = sqopt( name, Hx, c, x0, xl, xu, A, al, au )
+function [x,obj,INFO,output,lambda,states] = sqopt(Hx, c, x0, xl, xu, A, al, au, varargin)
+% function [x,obj,INFO,output,lambda,states] = sqopt(Hx, c, x0, xl, xu, A, al, au, varargin)
 %
 % This function solves the quadratic optimization problem:
 %   minimize:
@@ -15,17 +16,16 @@ function [x,Obj,INFO,lambda,states,output] = sqopt( name, Hx, c, x0, xl, xu, A, 
 %  al, au   are the lower and upper bounds of the linear constraints
 %
 % Calling sequences:
-%  x = sqopt ( name, Hx, c, x0, xl, xu, A, al, au )
+%  [] = sqopt(Hx, c, x0, xl, xu, A, al, au)
+%  [] = sqopt(Hx, c, x0, xl, xu, A, al, au, options)
 %
-%  [x]                = sqopt ( name, Hx, c, x0, xl, xu, A, al, au )
-%  [x,Obj]            = sqopt ( name, Hx, c, x0, xl, xu, A, al, au )
-%  [x,Obj,INFO]       = sqopt ( name, Hx, c, x0, xl, xu, A, al, au )
-%  [x,Obj,INFO,pi,rc] = sqopt ( name, Hx, c, x0, xl, xu, A, al, au )
+%  [] = sqopt(Hx, c, x0, xl, xu, A, al, au, states, lambda)
+%  [] = sqopt(Hx, c, x0, xl, xu, A, al, au, states, lambda, options)
+%
+%  [x,obj,INFO,output,lambda,states] = sqopt(...)
 %
 %
 % INPUT:
-%  name              is the name of the problem
-%
 %  x0                is the initial guess for x
 %
 %  Hx                is a Matlab function that computes H*x for a given x.
@@ -35,73 +35,137 @@ function [x,Obj,INFO,lambda,states,output] = sqopt( name, Hx, c, x0, xl, xu, A, 
 %
 %  xl, xu            are the upper and lower bounds on x
 %
-%  A                 is the linear constraint matrix; A cannot be empty, but
-%                    if there are no constraints, set A = zeros(0,n), where n
-%                    is the number of variables
+%  A                 is the linear constraint matrix. A can be a dense
+%                    matrix or a sparse matrix.
 %
 %  al, au            are the upper and lower bounds on the linear constraints A*x
 %
 % OUTPUT:
-%  x                 is the final point
+%     x        is the final point
 %
-%  Obj               is the objective at the final point x
+%     obj      is the final objective value
 %
-%  INFO              is the exit flag returned by SQOPT
+%     exitFlag is the exit flag returned by DQOPT
 %
-%  lambda            is a structure containing the multipliers at the point x
-%                    lambda.lb      are the lower bound multipliers
-%                    lambda.ub      are the upper bound multipliers
-%                    lambda.linear  are the linear constraint multipliers
+%     output   is a structure containing run information --
+%              output.iterations is the total number of iterations
+%              output.funcCount   is the total number of function evaluations
 %
-%  states            are the final state variables:
-%                    state.x for the variables
-%                    state.s for the slacks (constraint) variables
+%     lambda   is a structure containing the multipliers
+%              lambda.x          are for the variables
+%              lambda.linear     are for the linear constraints
 %
-%  output            output.iterations  == total number of iterations taken
-%                    output.info        == final exit code from SQOPT
+%     states   is a structure
+%              states.x
+%              states.linear
+%
 
-solveopt = 1;
+solveOpt = 1;
 
-if ( nargin ~= 9 ),
-  error('Wrong number of input arguments for sqopt');
+probName = '';
+start    = 'Cold';
+
+% Deal with options.
+optionsLoc = 0;
+if nargin == 9 || nargin == 11,
+  optionsLoc = nargin - 8;
+  if isstruct(varargin{optionsLoc}),
+    options = varargin{optionsLoc};
+    % Name
+    if isfield(options,'name'),
+      probName = options.name;
+    end
+
+    % Start
+    if isfield(options,'start'),
+      start = options.start;
+    end
+  else
+    optionsLoc = 0;
+  end
 end
 
-if (ischar(Hx))
-  userHx = str2func(Hx);
+userHx = checkFun(Hx,'SQOPT');
+
+if nargin == 8 || nargin == 9,
+  % sqopt(Hx, c, x0, xl, xu, A, al, au)
+  % sqopt(Hx, c, x0, xl, xu, A, al, au, options)
+
+  xstate = []; xmul = [];
+  astate = []; amul = [];
+
+elseif nargin == 10 || nargin == 11,
+  % sqopt(Hx, c, x0, xl, xu, A, al, au, states, lambda)
+  % sqopt(Hx, c, x0, xl, xu, A, al, au, states, lambda, options)
+
+  states = varargin{1};
+  lambda = varargin{2};
+
+  xstate = []; xmul   = [];
+  astate = []; amul   = [];
+
+  if isfield(states,'x'),
+    xstate = states.x;
+  end
+
+  if isfield(lambda,'x'),
+    xmul = lambda.x;
+  end
+
+  if isfield(states,'linear'),
+    astate = states.linear;
+  end
+
+  if isfield(lambda,'linear'),
+    amul = lambda.linear;
+  end
+
 else
-  userHx = Hx;
+  error('SQOPT:InputArgs','Wrong number of arguments in SQOPT');
 end
 
-[m,n]                = size(A);
-[neA,indA,locA,valA] = crd2spr(A);
+if isempty(A),
+  % Setup fake constraint matrix and bounds
+  warning('SQOPT:InputArgs','No linear constraints detected; dummy constraint created');
 
-x0 = colvec(x0,'x0',1,n);
-xl = colvec(xl,'xl',1,n);
-xu = colvec(xu,'xu',1,n);
+  m = 1;
+  n = size(x0,1);
 
-al = colvec(al,'al',1,m);
-au = colvec(au,'au',1,m);
+  neA     = 1;
+  indA(1) = 1;
+  valA(1) = 1.0;
 
-c  = colvec(c,'c',1,0);
+  locA(1) = 1;
+  locA(2:n+1) = 2;
+  locA    = locA';
+  al = [-inf]; au = [inf];
 
-[x,Obj,INFO,piA,y,hs,itn] = sqoptmex( solveopt, name, m, n, userHx, c, x0, xl, xu, ...
-				      neA, indA, locA, valA, al, au );
-
-if ( nargout >= 4 )
-  n    = size(x);
-  zero = zeros(n);
-
-  lambda.lb         = max(y,zero);
-  lambda.ub         = min(y,zero);
-  lambda.linear     = piA;
+else
+  [m,n]                = size(A);
+  [neA,indA,locA,valA] = crd2spr(A);
 end
 
-if ( nargout >= 5 )
-  states.x = hs(1:n);
-  states.s = hs(n+1:n+m);
-end
+x0  = colvec(x0,'x0',1,n);
+xl  = colvec(xl,'xl',1,n);
+xu  = colvec(xu,'xu',1,n);
+al  = colvec(al,'al',1,m);
+au  = colvec(au,'au',1,m);
+c   = colvec(c,'c',1,0);
 
-if ( nargout >= 6 )
-  output.info       = INFO;
-  output.iterations = itn;
+[x,obj,INFO,itn,y,state] = sqoptmex(solveOpt, start, probName, ...
+				    m, n, userHx, c, ...
+				    x0, xl, xu, xstate, xmul, ...
+				    neA, indA, locA, valA, al, au, astate, amul);
+
+% Set output
+output.iterations = itn;
+output.info       = INFO;
+
+zero     = zeros(n,1);
+states.x = state(1:n);
+lambda.x = y(1:n);
+
+if m > 0,
+  states.linear = state(n+1:n+m);
+  lambda.linear = y(n+1:n+m);
 end
