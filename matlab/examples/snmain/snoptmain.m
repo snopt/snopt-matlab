@@ -6,19 +6,19 @@
 snprint('snoptmain.out');
 
 snoptmain.spc = which('snoptmain.spc');
-snspec ( snoptmain.spc );
+snspec( snoptmain.spc );
 
-snseti ('Major Iteration limit', 250);
+snseti('Major Iteration limit', 250);
 
 %Get condensed data for the Hexagon problem.
 [x,xlow,xupp,xmul,xstate,Flow,Fupp,Fmul,Fstate] = hexagon;
-snset  ('Maximize');
+snset ('Maximize');
 
-[x,F,INFO] = snopt(x,xlow,xupp,xmul,xstate,...
+[x,F,INFO,~,~,~,~,output] = snopt(x,xlow,xupp,xmul,xstate,...
 		   Flow,Fupp,Fmul,Fstate,@snoptuserfun);
 
-itns   =  sngeti ('iw 421')
-majors =  sngeti ('iw 422')
+itns   =  output.iterations;
+majors =  output.majors;
 
 snprint off; % Closes the file and empties the print buffer
 snend;
@@ -29,25 +29,25 @@ snend;
 %function [x,xlow,xupp,Flow,Fupp] = hexagon()
 %
 % Defines the problem hexagon:
-%   maximize F(1)  (the objective row)
+%   maximize F(1) (the objective row)
 %   subject to
 %            xlow <=   x  <= xupp
 %            Flow <= F(x) <= Fupp
 %   where
 %     F( 1) =   x_2 x_6 - x_1 x_7 + x_3 x_7 + x_5 x_8 - x_4 x_9 - x_3 x_8
 %     F( 2) =    x_1^2 + x_6^2
-%     F( 3) =   (x_2   - x_1)^2  +  (x_7 - x_6)^2
-%     F( 4) =   (x_3   - x_1)^2  +   x_6^2
-%     F( 5) =   (x_1   - x_4)^2  +  (x_6 - x_8)^2
-%     F( 6) =   (x_1   - x_5)^2  +  (x_6 - x_9)^2
+%     F( 3) =  (x_2   - x_1)^2  + (x_7 - x_6)^2
+%     F( 4) =  (x_3   - x_1)^2  +   x_6^2
+%     F( 5) =  (x_1   - x_4)^2  + (x_6 - x_8)^2
+%     F( 6) =  (x_1   - x_5)^2  + (x_6 - x_9)^2
 %     F( 7) =    x_2^2 + x_7^2
-%     F( 8) =   (x_3   - x_2)^2  +   x_7^2
-%     F( 9) =   (x_4   - x_2)^2  +  (x_8 - x_7)^2
-%     F(10) =   (x_2   - x_5)^2  +  (x_7 - x_9)^2
-%     F(11) =   (x_4   - x_3)^2  +   x_8^2
-%     F(12) =   (x_5   - x_3)^2  +   x_9^2
+%     F( 8) =  (x_3   - x_2)^2  +   x_7^2
+%     F( 9) =  (x_4   - x_2)^2  + (x_8 - x_7)^2
+%     F(10) =  (x_2   - x_5)^2  + (x_7 - x_9)^2
+%     F(11) =  (x_4   - x_3)^2  +   x_8^2
+%     F(12) =  (x_5   - x_3)^2  +   x_9^2
 %     F(13) =    x_4^2 +  x_8^2
-%     F(14) =   (x_4   - x_5)^2 + (x_9 - x_8)^2
+%     F(14) =  (x_4   - x_5)^2 +(x_9 - x_8)^2
 %     F(15) =    x_5^2 + x_9^2
 %     F(16) =   -x_1 + x_2
 %     F(17) =         -x_2 + x_3
@@ -61,7 +61,7 @@ Obj    =  1; % The default objective row
 % Ranges for F.
 
 Flow = zeros(neF,1);
-Fupp = ones (neF,1);
+Fupp = ones(neF,1);
 
 Flow( 1:15)  = -Inf;
 Fupp(16:neF) =  Inf;

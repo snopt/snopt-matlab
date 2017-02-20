@@ -15,12 +15,12 @@ function [x,Obj,INFO] = hs76
 % Add path to SQOPT matlab files
 addpath([pwd,'/../../'], '-end');
 
-sqscreen ('on');
+sqscreen('on');
 sqprint('hs76.out');
 
 hs76.spc = which('hs76.spc');
-sqspec (hs76.spc);
-sqseti ('Major Iteration limit', 250);
+sqspec(hs76.spc);
+sqseti('Major Iteration limit', 250);
 
 
 % Set up the problem
@@ -45,10 +45,11 @@ xl = zeros(n,1);
 xu = []; % No upper bounds on x
 
 % Solve the problem.
-[x,Obj,INFO,lambda,states,output] = sqopt( 'HS76', @hs76Hx, f, x0, xl, xu, A, al, au );
+[x,Obj,INFO,lambda,states,output] = sqopt(@hs76Hx, f, x0, xl, xu, A, al, au);
 
-sqprint ('off');
-sqscreen ('off');
+
+sqprint('off');
+sqscreen('off');
 sqend;
 
 

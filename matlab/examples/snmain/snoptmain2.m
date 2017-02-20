@@ -6,19 +6,20 @@
 snoptmain2.spc = which('snoptmain2.spc');
 
 snprint('snoptmain2.out');
-snspec ( snoptmain2.spc  );
-snseti ('Major Iteration limit', 250);
+snspec(snoptmain2.spc);
+snseti('Major Iteration limit', 250);
 
 %Get condensed data for the Hexagon problem.
 [x,xlow,xupp,xmul,xstate, ...
    Flow,Fupp,Fmul,Fstate, ...
  A,iAfun,jAvar,iGfun,jGvar] = hexagon;
-snset  ('Maximize');
+
+snset('Maximize');
 
 [x,F,INFO] = snopt(x,xlow,xupp,xmul,xstate, ...
 		   Flow,Fupp,Fmul,Fstate, ...
 		   @snoptuserfun2, ...
-		   A, iAfun, jAvar, iGfun, jGvar);
+		   A,iAfun,jAvar,iGfun,jGvar);
 
 snprint off; % Closes the file and empties the print buffer
 snend;
