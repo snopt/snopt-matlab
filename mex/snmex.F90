@@ -6,6 +6,8 @@
 
 #include "fintrf.h"
 
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 module mxsnWork
   implicit none
   public
@@ -16,8 +18,12 @@ module mxsnWork
   double precision, allocatable :: rw(:), rw0(:)
   character*8,      allocatable :: cw(:), cw0(:)
 
+  ! Matlab
+  integer*4, parameter :: mxREAL = 0
 
   ! SNOPT mex variables
+  mwPointer            :: stopHandle
+
   logical              :: firstCall = .true.,  &
                           memCall   = .false., &
                           printOpen = .false., &
@@ -25,12 +31,6 @@ module mxsnWork
                           screenON  = .false.
 
   integer              :: callType = 0
-
-  mwPointer            :: fgHandle, HxHandle
-  mwPointer            :: objHandle, conHandle ! for fmincon-style
-  mwPointer            :: stopHandle
-
-  integer              :: neG
 
 
   integer, parameter   :: iPrint     = 9, iSpecs   = 4, iSumm    = 55, &
@@ -52,40 +52,18 @@ module mxsnWork
                           snscrnON   = 15, &
                           snscrnOff  = 16, &
                           snFindJac  = 17, &
-                          snSolveN   = 18, &
                           snEnd      = 999
 
-  ! SNOPT arrays
-  integer,          allocatable :: xstate(:), Fstate(:)
-  double precision, allocatable :: x(:), xmul(:), xlow(:), xupp(:), &
-                                   F(:), Fmul(:), Flow(:), Fupp(:)
-
-  double precision, allocatable :: rtmpa(:), G1(:)
-
-  integer,          allocatable :: iAfun(:), jAvar(:)
-  double precision, allocatable :: riAfun(:), rjAvar(:), A(:)
-
-  integer,          allocatable :: iGfun(:), jGvar(:)
-  double precision, allocatable :: riGfun(:), rjGvar(:)
-
-  integer,          allocatable :: tFstate(:)
-  double precision, allocatable :: tF(:), tFmul(:), tFlow(:), tFupp(:)
-
-
-  ! SQOPT arrays
-  integer,          allocatable :: hEtype(:), hs(:), indA(:), locA(:)
-  double precision, allocatable :: cObj(:), pi(:), rc(:), bl(:), bu(:), &
-                                   valA(:), rlocA(:), rindA(:)
+  public :: resetWork, deallocI, deallocR, checkCol, checkRow, &
+            copyMxArrayI, copyMxArrayR
 
 contains
 
   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  subroutine resetSNOPT
+  subroutine resetWork
     !---------------------------------------------------------------------------
-    ! resetSNOPT for new problem.
-    ! Reset variables, deallocate all arrays.
-    ! (Also registered with mexAtExit to deallocate workspace and close files)
+    ! Reset workspace, output for new problem.f
     !---------------------------------------------------------------------------
 
     !    if (printOpen) close(iPrint)
@@ -105,13 +83,6 @@ contains
     lenrw     = 5000
     lencw     = 500
 
-    call deallocSQOPT
-
-    call deallocSNOPT
-    call deallocA
-    call deallocG
-    call deallocF
-
     if (allocated(cw)) deallocate(cw)
     if (allocated(iw)) deallocate(iw)
     if (allocated(rw)) deallocate(rw)
@@ -120,33 +91,216 @@ contains
     if (allocated(iw0)) deallocate(iw0)
     if (allocated(rw0)) deallocate(rw0)
 
-  end subroutine resetSNOPT
-
+  end subroutine resetWork
 
   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  subroutine allocSNOPT( n, nF )
-    integer, intent(in) :: n, nF
+  subroutine deallocI(array)
+    integer, allocatable :: array(:)
+
+    if (allocated(array)) deallocate(array)
+
+  end subroutine deallocI
+
+  !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  subroutine deallocR(array)
+    double precision, allocatable :: array(:)
+
+    if (allocated(array)) deallocate(array)
+
+  end subroutine deallocR
+
+  !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  subroutine checkCol(pm, n, name)
+    mwPointer     :: pm
+    integer       :: n
+    character*(*) :: name
+    !---------------------------------------------------------------------------
+    ! Check column dimension of pm is equal to n.
+    !---------------------------------------------------------------------------
+    character*80 :: str
+    mwSize       :: m, mxGetN
+
+    m = mxGetN(pm)
+    if (m /= n) then
+       write(str,100) name, m, n
+       call mexErrMsgTxt (str)
+    end if
+
+    return
+
+100 format (a, ' has incorrect column dimension ', i5, &
+                '.  Should be length ', i5)
+
+  end subroutine checkCol
+
+  !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  subroutine checkRow(pm, n, name)
+    character*(*) :: name
+    mwPointer     :: pm
+    integer       :: n
+    !---------------------------------------------------------------------------
+    ! Check row dimension of pm is equal to n.
+    !---------------------------------------------------------------------------
+    character*80 :: str
+    mwSize       :: m, mxGetM
+
+    m = mxGetM(pm)
+    if (m /= n) then
+       write(str,100) name, m, n
+       call mexErrMsgTxt (str)
+    end if
+
+    return
+
+100 format (a, ' has incorrect row dimension ', i5, &
+                '.  Should be length ', i5)
+
+  end subroutine checkRow
+
+  !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  subroutine copyMxArrayR(name, n, mxarray, array, defval)
+    character*(*)    :: name
+    integer          :: n
+    mwPointer        :: mxarray
+    double precision :: defval, array(n)
+    !---------------------------------------------------------------------
+    ! Check if matlab array is empty.
+    ! If not empty, copy to real array.
+    ! Else, set array to default value.
+    !---------------------------------------------------------------------
+    mwPointer :: mxGetPr
+    mwSize    :: dim
+    integer*4 :: mxIsEmpty
+
+    if (n <= 0) return
+
+    if (mxIsEmpty(mxarray) > 0) then
+       array(1:n) = defval
+    else
+       call checkRow(mxarray, n, name)
+       call checkCol(mxarray, 1, name)
+
+       dim = n
+       call mxCopyPtrToReal8(mxGetPr(mxarray), array(1:n), dim)
+    end if
+
+  end subroutine copyMxArrayR
+
+  !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  subroutine copyMxArrayI(name, n, mxarray, array, defval)
+    character*(*)    :: name
+    integer          :: n, defval, array(n)
+    mwPointer        :: mxarray
+    !---------------------------------------------------------------------
+    ! Check if matlab array is empty.
+    ! If not empty, copy to real array.
+    ! Else, set array to default value.
+    !---------------------------------------------------------------------
+    mwPointer        :: mxGetPr
+    mwSize           :: dim
+    integer*4        :: mxIsEmpty
+    double precision :: tarray(n)
+
+    if (n <= 0) return
+
+    if (mxIsEmpty(mxarray) > 0) then
+       array(1:n) = defval
+    else
+       call checkRow(mxarray, n, name)
+       call checkCol(mxarray, 1, name)
+
+       dim = n
+       !call mxCopyPtrToInteger4(mxGetPr(mxarray), array(1:n), dim)
+       call mxCopyPtrToReal8(mxGetPr(mxarray), tarray(1:n), dim)
+       array(1:n) = int(tarray(1:n))
+    end if
+
+  end subroutine copyMxArrayI
+
+  !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+end module mxsnWork
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+module mxNLP
+  use mxsnWork
+  implicit none
+  public
+
+  mwPointer :: fgHandle
+
+  integer   :: neG
+
+  integer,          allocatable :: xstate(:), Fstate(:)
+  double precision, allocatable :: x(:), xmul(:), xlow(:), xupp(:), &
+                                   F(:), Fmul(:), Flow(:), Fupp(:)
+
+  integer,          allocatable :: iAfun(:), jAvar(:)
+  double precision, allocatable :: A(:)
+  integer,          allocatable :: iGfun(:), jGvar(:)
+
+  double precision, allocatable :: G1(:)
+
+  integer,          allocatable :: tFstate(:)
+  double precision, allocatable :: tF(:), tFmul(:), tFlow(:), tFupp(:)
+
+contains
+
+  !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  subroutine resetSNOPT
+    !---------------------------------------------------------------------------
+    ! resetSNOPT for new problem.
+    ! (Also registered with mexAtExit to deallocate workspace and close files)
+    !---------------------------------------------------------------------------
+    call resetWork
+    call deallocSNOPT
+
+  end subroutine resetSNOPT
+
+  !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  subroutine allocSNOPT(n, nF, lenA, lenG)
+    integer, intent(in) :: n, nF, lenA, lenG
     !---------------------------------------------------------------------------
     ! Allocate space for SNOPT solve.
     !---------------------------------------------------------------------------
 
-    call deallocSNOPT
+    call deallocSNOPT()
 
-    allocate(rtmpa(max(n,nF)))
     allocate(x(n),  xlow(n),  xupp(n),  xmul(n),  xstate(n))
     allocate(F(nF), Flow(nF), Fupp(nF), Fmul(nF), Fstate(nF))
+
+    if (lenA > 0) then
+       allocate(iAfun(lenA), jAvar(lenA), A(lenA))
+    end if
+
+    if (lenG > 0) then
+       allocate(G1(lenG))
+       allocate(iGfun(lenG),  jGvar(lenG))
+    end if
 
   end subroutine allocSNOPT
 
   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  subroutine deallocSNOPT
+  subroutine deallocSNOPT()
     !---------------------------------------------------------------------------
     ! Deallocate x,F arrays involved in solve routine.
     !---------------------------------------------------------------------------
 
-    call deallocR(rtmpa)
+    if (fgHandle    /= 0) call mxDestroyArray(fgHandle)
+    if (stopHandle  /= 0) call mxDestroyArray(stopHandle)
+
+    fgHandle   = 0
+    stopHandle = 0
 
     call deallocR(x)
     call deallocR(xmul)
@@ -160,96 +314,45 @@ contains
     call deallocR(Fupp)
     call deallocI(Fstate)
 
-  end subroutine deallocSNOPT
-
-  !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-  subroutine allocA( lenA )
-    integer, intent(in) :: lenA
-    !---------------------------------------------------------------------------
-    ! Allocate space for A
-    !---------------------------------------------------------------------------
-
-    call deallocA
-
-    allocate(iAfun(lenA), jAvar(lenA), A(lenA))
-    allocate(riAfun(lenA), rjAvar(lenA))
-
-  end subroutine allocA
-
-  !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-  subroutine deallocA
-    !---------------------------------------------------------------------------
-    ! Deallocate space for A
-    !---------------------------------------------------------------------------
-
     call deallocI(iAfun)
     call deallocI(jAvar)
     call deallocR(A)
-
-    call deallocR(riAfun)
-    call deallocR(rjAvar)
-
-  end subroutine deallocA
-
-  !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-  subroutine allocG( lenG )
-    integer, intent(in) :: lenG
-    !---------------------------------------------------------------------------
-    ! Allocate space for G
-    !---------------------------------------------------------------------------
-
-    call deallocG
-
-    allocate( G1(lenG))
-    allocate( iGfun(lenG),  jGvar(lenG))
-    allocate(riGfun(lenG), rjGvar(lenG))
-
-  end subroutine allocG
-
-  !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-  subroutine deallocG
-    !---------------------------------------------------------------------------
-    ! Deallocate space for G
-    !---------------------------------------------------------------------------
 
     call deallocR(G1)
 
     call deallocI(iGfun)
     call deallocI(jGvar)
 
-    call deallocR(riGfun)
-    call deallocR(rjGvar)
-
-  end subroutine deallocG
+  end subroutine deallocSNOPT
 
   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  subroutine allocJac( n, lenA, lenG )
+  subroutine allocJac(n, lenA, lenG)
     integer, intent(in) :: n, lenA, lenG
     !---------------------------------------------------------------------------
     ! Allocate space for snJac.
     !---------------------------------------------------------------------------
 
-    call deallocR(x)
-    call deallocR(xlow)
-    call deallocR(xupp)
-    allocate( x(n), xlow(n), xupp(n) )
+    call deallocJac
 
-    call allocA(lenA)
-    call allocG(lenG)
+    allocate(x(n), xlow(n), xupp(n))
+
+    allocate(iAfun(lenA), jAvar(lenA), A(lenA))
+
+    allocate(G1(lenG))
+    allocate(iGfun(lenG), jGvar(lenG))
 
   end subroutine allocJac
 
   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  subroutine deallocJac
+  subroutine deallocJac()
     !---------------------------------------------------------------------------
     ! Deallocate space for snJac.
     !---------------------------------------------------------------------------
+
+    if (fgHandle /= 0) call mxDestroyArray(fgHandle)
+    fgHandle = 0
 
     call deallocR(x)
     call deallocR(xlow)
@@ -257,7 +360,12 @@ contains
 
     call deallocI(iAfun)
     call deallocI(jAvar)
+    call deallocR(A)
 
+    call deallocI(iGfun)
+    call deallocI(jGvar)
+
+    call deallocR(G1)
     call deallocI(iGfun)
     call deallocI(jGvar)
 
@@ -265,20 +373,20 @@ contains
 
   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  subroutine allocF( nF )
+  subroutine allocF(nF)
     integer, intent(in) :: nF
     !---------------------------------------------------------------------------
     ! Allocate F space for snSTOP.
     !---------------------------------------------------------------------------
 
-    call deallocF
-    allocate( tF(nF), tFstate(nF), tFmul(nF), tFlow(nF), tFupp(nF) )
+    call deallocF()
+    allocate(tF(nF), tFstate(nF), tFmul(nF), tFlow(nF), tFupp(nF))
 
   end subroutine allocF
 
   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  subroutine deallocF
+  subroutine deallocF()
     !---------------------------------------------------------------------------
     ! Deallocate F space for snSTOP.
     !---------------------------------------------------------------------------
@@ -293,93 +401,94 @@ contains
 
   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  subroutine deallocI( array )
-    integer, allocatable :: array(:)
+end module mxNLP
 
-    if (allocated(array)) deallocate(array)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  end subroutine deallocI
+module mxQP
+  use mxsnWork
+  implicit none
+  public
+
+  mwPointer :: HxHandle
+
+  ! SQOPT arrays
+  integer,          allocatable :: hEtype(:), hs(:), indA(:), locA(:)
+  double precision, allocatable :: x(:), cObj(:), pi(:), rc(:), &
+                                   bl(:), bu(:), valA(:)
+
+  integer,          allocatable :: iAfun(:), jAvar(:)
+  double precision, allocatable :: A(:)
+
+contains
 
   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  subroutine deallocR( array )
-    double precision, allocatable :: array(:)
+  subroutine resetSQOPT
+    !---------------------------------------------------------------------------
+    ! resetSQOPT for new problem.
+    ! (Also registered with mexAtExit to deallocate workspace and close files)
+    !---------------------------------------------------------------------------
+    call resetWork
+    call deallocSQOPT
 
-    if (allocated(array)) deallocate(array)
+  end subroutine resetSQOPT
 
-  end subroutine deallocR
+  !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  subroutine allocSQOPT(n, m, nnH, ncObj, neA)
+    integer, intent(in) :: n, m, nnH, ncObj, neA
+    !---------------------------------------------------------------------------
+    ! Allocate space for SQOPT solve.
+    !---------------------------------------------------------------------------
+
+    allocate(x(n+m), pi(m), rc(n+m))
+    allocate(bl(n+m), bu(n+m))
+
+    allocate(hs(n+m), hEtype(n+m))
+
+    if (ncObj > 0) then
+       allocate(cObj(ncObj))
+    else
+       allocate(cObj(1))
+    end if
+
+    if (neA > 0) then
+       allocate(indA(neA))
+       allocate(valA(neA))
+       allocate(locA(n+1))
+    end if
+
+  end subroutine allocSQOPT
 
   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   subroutine deallocSQOPT
+    !---------------------------------------------------------------------------
+    ! Deallocate space for SQOPT solve.
+    !---------------------------------------------------------------------------
 
-    if (allocated(cObj))   deallocate(cObj)
+    if (HxHandle /= 0) call mxDestroyArray(HxHandle)
+    HxHandle = 0
 
-    if (allocated(x))      deallocate(x)
-    if (allocated(pi))     deallocate(pi)
-    if (allocated(rc))     deallocate(rc)
-    if (allocated(bl))     deallocate(bl)
-    if (allocated(bu))     deallocate(bu)
-    if (allocated(hs))     deallocate(hs)
-    if (allocated(hEtype)) deallocate(hEtype)
+    call deallocR(x)
+    call deallocR(pi)
+    call deallocR(rc)
+    call deallocR(bl)
+    call deallocR(bu)
+    call deallocR(cObj)
 
-    if (allocated(indA))   deallocate(indA)
-    if (allocated(locA))   deallocate(locA)
-    if (allocated(valA))   deallocate(valA)
+    call deallocI(hs)
+    call deallocI(hEtype)
 
-    if (allocated(rindA))  deallocate(rindA)
-    if (allocated(rlocA))  deallocate(rlocA)
+    call deallocI(indA)
+    call deallocI(locA)
+    call deallocR(valA)
 
   end subroutine deallocSQOPT
 
   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  subroutine checkCol ( pm, n, name )
-    mwPointer     :: pm
-    integer       :: n
-    character*(*) :: name
-    !---------------------------------------------------------------------------
-    ! Check column dimension of pm is equal to n.
-    !---------------------------------------------------------------------------
-    character*80 :: str
-    mwSize       :: m, mxGetN
+end module mxQP
 
-    m = mxGetN(pm)
-    if ( m /= n ) then
-       write(str,100) name, m, n
-       call mexErrMsgTxt ( str )
-    end if
-
-    return
-
-100 format ( a, ' has incorrect column dimension ', i5, &
-                '.  Should be length ', i5 )
-
-  end subroutine checkCol
-
-  !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-  subroutine checkRow ( pm, n, name )
-    character*(*) :: name
-    mwPointer     :: pm
-    integer       :: n
-    !---------------------------------------------------------------------------
-    ! Check row dimension of pm is equal to n.
-    !---------------------------------------------------------------------------
-    character*80 :: str
-    mwSize       :: m, mxGetM
-
-    m = mxGetM(pm)
-    if ( m /= n ) then
-       write(str,100) name, m, n
-       call mexErrMsgTxt ( str )
-    end if
-
-    return
-
-100 format ( a, ' has incorrect row dimension ', i5, &
-                '.  Should be length ', i5 )
-
-  end subroutine checkRow
-
-end module mxsnWork
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
