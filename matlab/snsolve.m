@@ -247,8 +247,6 @@ end
 fval              = F(1);
 zero              = zeros(n,1);
 states.x          = xstate(1:n);
-xmul(1:n)
-zero
 lambda.lower      = max(xmul(1:n),zero);
 lambda.upper      = min(xmul(1:n),zero);
 
