@@ -372,7 +372,7 @@ subroutine sqmxSolve(nlhs, plhs, nrhs, prhs)
 
   call sqopt                                            &
        (Start, matlabHx, m, n, neA, nNames,             &
-        ncObj, nnH, iObj, ObjAdd, trim(probName),       &
+        ncObj, nnH, iObj, ObjAdd, probName,             &
         valA, indA, locA, bl, bu, cObj, Names,          &
         hEtype, hs, x, pi, rc,                          &
         INFO, mincw, miniw, minrw, nS, nInf, sInf, Obj, &

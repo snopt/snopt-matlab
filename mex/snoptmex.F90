@@ -411,7 +411,7 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
   !---------------------------------------------------------------------
   call snKerA                                        &
        ( Start, nF, n, nxname, nFname,               &
-         objAdd, objRow, trim(probName),             &
+         objAdd, objRow, probName,                   &
          matlabFG, snLog, snLog2, sqLog, matlabSTOP, &
          iAfun, jAvar, lenA, neA, A,                 &
          iGfun, jGvar, lenG, neG,                    &
