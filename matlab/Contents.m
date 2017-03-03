@@ -26,6 +26,10 @@
 %     Examples that provide problem information and no derivatives:
 %       snoptmain   sntoy2
 %
+% snsolve.m
+%     is also a mex interface to snOptA.  Its calling sequence is based
+%     on Matlab's "fmincon" function.
+%
 % snend.m
 %     must be called after calling snsolve.m to deallocate memory and reset
 %     workspace and settings.
