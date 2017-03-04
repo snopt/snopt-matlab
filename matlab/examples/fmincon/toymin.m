@@ -32,7 +32,8 @@ ub     = Inf*ones(4,1);
 options.name = 'toyprob';
 options.stop = @toySTOP;
 
-[x,fval,INFO,lambda] = snsolve( @toyObj, x0, A, b, Aeq, beq, lb, ub, @toyCon, options);
+[x,fval,INFO,output,lambda,states] = snsolve( @toyObj, x0, A, b, Aeq, beq, lb, ub, ...
+					      @toyCon, options);
 
 snprint off;
 snend;

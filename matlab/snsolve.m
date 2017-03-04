@@ -13,6 +13,10 @@ function [x,fval,exitflag,output,lambda,states] = snsolve(obj,x0,A,b,varargin)
 %   [...] = snsolve(obj,x0,A,b,Aeq,beq,xlow,xupp,nonlcon)
 %   [...] = snsolve(obj,x0,A,b,Aeq,beq,xlow,xupp,nonlcon,options)
 %
+%   [...] = snsolve(obj,x0,A,b,Aeq,beq,xlow,xupp,nonlcon,lambda,states)
+%   [...] = snsolve(obj,x0,A,b,Aeq,beq,xlow,xupp,nonlcon,lambda,states,options)
+%
+%
 % Output from snsolve:
 %   [x,fval,exitflag,output,lambda,states] = snsolve(...)
 %
@@ -38,16 +42,14 @@ function [x,fval,exitflag,output,lambda,states] = snsolve(obj,x0,A,b,varargin)
 %                      output.majors      the total number of major iterations
 %
 %   lambda             are the final multipliers
-%                      lambda.lower        lower bounds
-%                      lambda.upper        upper bounds
+%                      lambda.x            variables
 %                      lambda.ineqnonlin   nonlinear inequalities
 %                      lambda.eqnonlin     nonlinear equalities
 %                      lambda.ineqlin      linear inequalities
 %                      lambda.eqlin        linear equalities
 %
 %   states             are the final states
-%                      states.lower        lower bounds
-%                      states.upper        upper bounds
+%                      states.x            variables
 %                      states.ineqnonlin   nonlinear inequalities
 %                      states.eqnonlin     nonlinear equalities
 %                      states.ineqlin      linear inequalities
@@ -65,7 +67,8 @@ optionsLoc = 0;
 myobj = checkFun(obj,'SNOPT',[1]);
 
 % Deal with options
-if nargin == 5 || nargin == 7 || nargin == 9 || nargin == 10,
+if nargin == 5 || nargin == 7 || nargin == 9 || ...
+	   nargin == 10 || nargin == 12,
   optionsLoc = nargin - 4;
   if isstruct(varargin{optionsLoc}),
     options = varargin{optionsLoc};
@@ -109,6 +112,7 @@ nonlin_ineq = 0;
 nonlin_eq   = 0;
 nonlcon     = 0;
 
+
 if     nargin == 4 || nargin == 5,
   % snsolve(obj,x0,A,b)
   % snsolve(obj,x0,A,b,options)
@@ -116,6 +120,9 @@ if     nargin == 4 || nargin == 5,
   Aeq  = [];  beq  = [];
   xlow = [];  xupp = [];
   c    = [];  ceq  = [];
+  xmul = [];  xstate = [];
+  Fmul = [];  Fstate = [];
+
 
 elseif nargin == 6 || nargin == 7,
   % snsolve(obj,x0,A,b,Aeq,beq)
@@ -127,6 +134,8 @@ elseif nargin == 6 || nargin == 7,
 
   xlow = [];  xupp = [];
   c    = [];  ceq  = [];
+  xmul = [];  xstate = [];
+  Fmul = [];  Fstate = [];
 
 elseif nargin == 8 || (nargin == 9 && optionsLoc ~=0),
   % snsolve(obj,x0,A,b,Aeq,beq,xlow,xupp)
@@ -138,10 +147,14 @@ elseif nargin == 8 || (nargin == 9 && optionsLoc ~=0),
   xupp      = varargin{4};
   linear_eq = size(Aeq,1);
   c    = [];  ceq  = [];
+  xmul = [];  xstate = [];
+  Fmul = [];  Fstate = [];
 
-elseif nargin == 9 || nargin == 10,
+elseif nargin >= 9 && nargin <= 12,
   % snsolve(obj,x0,A,b,Aeq,beq,xlow,xupp,nonlcon)
   % snsolve(obj,x0,A,b,Aeq,beq,xlow,xupp,nonlcon,options)
+  % snsolve(obj,x0,A,b,Aeq,beq,xlow,xupp,nonlcon,lambda,states)
+  % snsolve(obj,x0,A,b,Aeq,beq,xlow,xupp,nonlcon,lambda,states,options)
 
   Aeq       = varargin{1};
   beq       = varargin{2};
@@ -149,6 +162,20 @@ elseif nargin == 9 || nargin == 10,
   xupp      = varargin{4};
   nonlc     = varargin{5};
   linear_eq = size(Aeq,1);
+  xmul = [];  xstate = [];
+  Fmul = [];  Fstate = [];
+
+  if nargin == 11 || nargin == 12,
+    lambda = varargin{6};
+    states = varargin{7};
+
+    xmul   = lambda.x;  xstate = states.x;
+    Fmul   = [ 0; lambda.ineqnonlin; lambda.eqnonlin;
+	       lambda.ineqlin; lambda.eqlin];
+    Fstate = [ 0; states.ineqnonlin; states.eqnonlin;
+	       states.ineqlin; states.eqlin];
+
+  end
 
   nonlcon  = checkFun(nonlc,'SNOPT');
 
@@ -228,8 +255,8 @@ if isa(nonlcon,'function_handle'),
 					@(x,needF,needG)snfun(x,needF,needG,myobj, ...
 						  nonlcon,iGfun,jGvar), ...
 					x0, ...
-					xlow, xupp, [], [], ...
-					Flow, Fupp, [], [], ...
+					xlow, xupp, xmul, xstate, ...
+					Flow, Fupp, Fmul, Fstate, ...
 					ObjAdd, ObjRow, ...
 					Aij, iAfun, jAvar, iGfun, jGvar);
 else
@@ -238,8 +265,8 @@ else
 					istart, stopFun, probName, ...
 					@(x,needF,needG)snfun(x,needF,needG,myobj), ...
 					x0, ...
-					xlow, xupp, [], [], ...
-					Flow, Fupp, [], [], ...
+					xlow, xupp, xmul, xstate, ...
+					Flow, Fupp, Fmul, Fstate, ...
 					ObjAdd, ObjRow, ...
 					Aij, iAfun, jAvar, iGfun, jGvar);
 end
@@ -247,8 +274,7 @@ end
 fval              = F(1);
 zero              = zeros(n,1);
 states.x          = xstate(1:n);
-lambda.lower      = max(xmul(1:n),zero);
-lambda.upper      = min(xmul(1:n),zero);
+lambda.x          = xmul(1:n);
 
 if nonlin_ineq > 0,
   i1 = 1+1; i2 = i1-1 + nonlin_ineq;

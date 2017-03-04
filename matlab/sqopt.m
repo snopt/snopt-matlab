@@ -56,8 +56,8 @@ function [x,obj,INFO,output,lambda,states] = sqopt(Hx, c, x0, xl, xu, A, al, au,
 %              lambda.linear     are for the linear constraints
 %
 %     states   is a structure
-%              states.x
-%              states.linear
+%              states.x          are for the variables
+%              states.linear     are for the linear constraints
 %
 
 solveOpt = 1;

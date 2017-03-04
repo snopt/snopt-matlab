@@ -17,6 +17,7 @@ function [x,fval,exitFlag,output,lambda] = sqsolve(Hx, f, varargin)
 %  x = sqsolve(Hx, f, A, b, Aeq, beq, lb, ub)
 %  x = sqsolve(Hx, f, A, b, Aeq, beq, lb, ub, x0)
 %  x = sqsolve(Hx, f, A, b, Aeq, beq, lb, ub, x0, options)
+%  x = sqsolve(Hx, f, A, b, Aeq, beq, lb, ub, x0, lambda, states, options)
 %
 %  [x,fval]                        = sqsolve(Hx, f, ...)
 %  [x,fval,exitflag]               = sqsolve(Hx, f, ...)
@@ -61,11 +62,12 @@ function [x,fval,exitFlag,output,lambda] = sqsolve(Hx, f, varargin)
 %              output.funcCount   is the total number of function evaluations
 %
 %     lambda   is a structure containing the multipliers
-%              lambda.lb         are for the lower bounds
-%              lambda.ub         are for the upper bounds
-%              lambda.ineqlin    are for the linear inequality constraints
-%              lambda.eqlin      are for the linear equality constraints
+%              lambda.x          are for the variables
+%              lambda.linear     are for the linear constraints
 %
+%     states   is a structure containing the states
+%              states.x          are for the variables
+%              states.linear     are for the linear constraints
 %
 solveOpt = 1;
 
@@ -81,6 +83,9 @@ if nargin == 2,
   lb  = [];  ub  = [];
   x0  = [];
 
+  xstate = []; xmul = [];
+  astate = []; amul = [];
+
 elseif nargin == 4,
   % sqsolve(Hx, f, A, b)
   A = varargin{1};
@@ -88,6 +93,9 @@ elseif nargin == 4,
   Aeq = [];  beq = [];
   lb  = [];  ub  = [];
   x0  = [];
+
+  xstate = []; xmul = [];
+  astate = []; amul = [];
 
 
 elseif nargin == 6,
@@ -99,6 +107,9 @@ elseif nargin == 6,
   lb  = [];  ub  = [];
   x0  = [];
 
+  xstate = []; xmul = [];
+  astate = []; amul = [];
+
 elseif nargin == 8,
   % sqsolve(Hx, f, A, b, Aeq, beq, lb, ub)
   A   = varargin{1};
@@ -108,6 +119,9 @@ elseif nargin == 8,
   lb  = varargin{5};
   ub  = varargin{6};
   x0  = [];
+
+  xstate = []; xmul = [];
+  astate = []; amul = [];
 
 elseif nargin == 9,
   % sqsolve(Hx, f, A, b, Aeq, beq, lb, ub, x0)
@@ -119,8 +133,12 @@ elseif nargin == 9,
   ub  = varargin{6};
   x0  = varargin{7};
 
-elseif nargin == 10,
+  xstate = []; xmul = [];
+  astate = []; amul = [];
+
+elseif nargin == 10 || nargin == 12,
   % sqsolve(Hx, f, A, b, Aeq, beq, lb, ub, x0, options)
+  % sqsolve(Hx, f, A, b, Aeq, beq, lb, ub, x0, lambda, states, options)
   A   = varargin{1};
   b   = varargin{2};
   Aeq = varargin{3};
@@ -128,6 +146,19 @@ elseif nargin == 10,
   lb  = varargin{5};
   ub  = varargin{6};
   x0  = varargin{7};
+
+  xstate = []; xmul = [];
+  astate = []; amul = [];
+
+  if nargin == 12,
+    lambda = varargin{8};
+    states = varargin{9};
+
+    xstate = states.x;
+    xmul   = lambda.x;
+    astate = states.linear;
+    amul   = lambda.linear;
+  end
 
   % Deal with options.
   optionsLoc = 10;
@@ -161,8 +192,8 @@ al   = [ -inf*ones(ineq,1); beq ];
 au   = [                 b; beq ];
 
 [x,fval,exitFlag,itn,y,state] = sqoptmex(solveOpt, start, probName, ...
-					 userHx, f, x0, lb, ub, [], [], ...
-					 AA,  al, au, [], []);
+					 userHx, f, x0, lb, ub, xstate, xmul, ...
+					 AA,  al, au, astate, amul);
 
 % Set output
 output.iterations = itn;
@@ -177,8 +208,3 @@ if m > 0,
   states.linear = state(n+1:n+m);
   lambda.linear = y(n+1:n+m);
 end
-
-lambda.lb         = max(y(1:n),zero);
-lambda.ub         = min(y(1:n),zero);
-lambda.ineqlin    = y(1+n:ineq+n);
-lambda.eqlin      = y(1+ineq+n:n+m);
