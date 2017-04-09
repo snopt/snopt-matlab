@@ -63,8 +63,6 @@ istart     = 0;
 stopFun    = 0;
 optionsLoc = 0;
 
-% Check user-defined functions
-myobj = checkFun(obj,'SNOPT',[1]);
 
 % Deal with options
 if nargin == 5 || nargin == 7 || nargin == 9 || ...
@@ -94,7 +92,7 @@ if nargin == 5 || nargin == 7 || nargin == 9 || ...
       elseif isa(options.stop,'function_handle'),
 	stopFun = options.stop;
       else
-	error('SNOPT:InputArgs','%s.stop should be a string or function handle',inputname(options));
+	error('SNOPT:InputArgs','options.stop should be a string or function handle');
       end
     end
 
@@ -104,13 +102,31 @@ if nargin == 5 || nargin == 7 || nargin == 9 || ...
 end
 
 
-x0          = colvec(x0,'x0',0,0);
-n           = length(x0);
 linear_ineq = size(A,1);
 linear_eq   = 0;
 nonlin_ineq = 0;
 nonlin_eq   = 0;
 nonlcon     = 0;
+x0          = colvec(x0,'x0',0,0);
+n           = length(x0);
+
+
+% Check user-defined functions
+myobj = checkFun(obj,'SNOPT','obj');
+
+gotGrad = 0;
+try
+  [fobj,gobj] = myobj(x0)
+  gotGrad = 1;
+catch
+  try
+    fobj = myobj(x0);
+    gotGrad = 0;
+  catch
+    error('SNOPT:InputArgs', ...
+	  'Wrong number of output arguments for obj');
+  end
+end
 
 
 if     nargin == 4 || nargin == 5,
@@ -177,24 +193,24 @@ elseif nargin >= 9 && nargin <= 12,
 
   end
 
-  nonlcon  = checkFun(nonlc,'SNOPT');
+  nonlcon  = checkFun(nonlc,'SNOPT','nonlcon');
 
-  narg = nargout(nonlcon);
-  if narg == 4,
+  gotDeriv = 0;
+  try
     [c,ceq,J,Jeq] = nonlcon(x0);
-    nonlin_ineq   = size(c,1);
-    nonlin_eq     = size(ceq,1);
-
     J = J';  Jeq = Jeq';
-
-  elseif narg == 2,
-    [c,ceq]  = nonlcon(x0);
-    nonlin_ineq   = size(c,1);
-    nonlin_eq     = size(ceq,1);
-
-  else
-    error('SNOPT:InputArgs','Wrong number of output arguments for %s',inputname(nonlc));
+    gotDeriv = 1;
+  catch
+    try
+      [c,ceq]  = nonlcon(x0);
+      gotDeriv = 0;
+    catch
+      error('SNOPT:InputArgs', ...
+	    'Wrong number of output arguments for nonlcon');
+    end
   end
+  nonlin_ineq = size(c,1);
+  nonlin_eq   = size(ceq,1);
 
 else
   error('SNOPT:InputArgs','Wrong number of input arguments for snsolve')
@@ -249,26 +265,26 @@ Fupp    = [  inf;
 
 
 if isa(nonlcon,'function_handle'),
-  [x,F,exitflag,xmul,Fmul, ...
-   xstate,Fstate,itn,mjritn] = snoptmex(solveopt, ...
-					istart, stopFun, probName, ...
-					@(x,needF,needG)snfun(x,needF,needG,myobj, ...
-						  nonlcon,iGfun,jGvar), ...
-					x0, ...
-					xlow, xupp, xmul, xstate, ...
-					Flow, Fupp, Fmul, Fstate, ...
-					ObjAdd, ObjRow, ...
-					Aij, iAfun, jAvar, iGfun, jGvar);
+  [x,F,exitflag,xmul,Fmul,xstate,Fstate,itn,mjritn] = ...
+      snoptmex(solveopt, ...
+	       istart, stopFun, probName, ...
+	       @(x,needF,needG)snfun(x,needF,needG,myobj,gotGrad, ...
+				     nonlcon,gotDeriv,iGfun,jGvar), ...
+	       x0, ...
+	       xlow, xupp, xmul, xstate, ...
+	       Flow, Fupp, Fmul, Fstate, ...
+	       ObjAdd, ObjRow, ...
+	       Aij, iAfun, jAvar, iGfun, jGvar);
 else
-  [x,F,exitflag,xmul,Fmul, ...
-   xstate,Fstate,itn,mjritn] = snoptmex(solveopt, ...
-					istart, stopFun, probName, ...
-					@(x,needF,needG)snfun(x,needF,needG,myobj), ...
-					x0, ...
-					xlow, xupp, xmul, xstate, ...
-					Flow, Fupp, Fmul, Fstate, ...
-					ObjAdd, ObjRow, ...
-					Aij, iAfun, jAvar, iGfun, jGvar);
+  [x,F,exitflag,xmul,Fmul,xstate,Fstate,itn,mjritn] = ...
+      snoptmex(solveopt, ...
+	       istart, stopFun, probName, ...
+	       @(x,needF,needG)snfun(x,needF,needG,myobj,gotGrad), ...
+	       x0, ...
+	       xlow, xupp, xmul, xstate, ...
+	       Flow, Fupp, Fmul, Fstate, ...
+	       ObjAdd, ObjRow, ...
+	       Aij, iAfun, jAvar, iGfun, jGvar);
 end
 
 fval              = F(1);
@@ -318,14 +334,14 @@ output.majors     = mjritn;
 
 
 
-function [F,G] = snfun(x,needF,needG,obj,varargin)
+function [F,G] = snfun(x,needF,needG,obj,gotGrad,varargin)
 % Wrapper for obj and nonlcon in snsolve call.
 
 % Compute objective function and gradients
 fobj = []; gobj = [];
 
 if needG > 0,
-  if nargout(obj) == 2,
+  if gotGrad,
     [fobj,gobj] = obj(x);
   else
     if needF > 0,
@@ -340,13 +356,14 @@ end
 c    = []; ceq  = [];
 J    = []; Jeq  = [];
 
-if nargin == 7,
-  nonlcon = varargin{1};
-  iGfun   = varargin{2};
-  jGvar   = varargin{3};
+if nargin == 9,
+  nonlcon  = varargin{1};
+  gotDeriv = varargin{2};
+  iGfun    = varargin{3};
+  jGvar    = varargin{4};
 
   if needG > 0,
-    if nargout(nonlcon) == 4,
+    if gotDeriv,
       [c,ceq,J,Jeq] = nonlcon(x);
     else
       if needF > 0,

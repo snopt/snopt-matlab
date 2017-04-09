@@ -85,7 +85,7 @@ if nargin == 9 || nargin == 11,
   end
 end
 
-userHx = checkFun(Hx,'SQOPT');
+userHx = checkFun(Hx,'SQOPT','Hx');
 
 if nargin == 8 || nargin == 9,
   % sqopt(Hx, c, x0, xl, xu, A, al, au)

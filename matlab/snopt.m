@@ -137,21 +137,6 @@ istart     = 0;
 stopFun    = 0;
 optionsLoc = 0;
 
-% Check userfun
-if (ischar(userfun))
-  userFG = str2func(userfun);
-elseif isa(userfun,'function_handle'),
-  userFG = userfun;
-else
-  error('SNOPT:InputArgs','%s should be a function handle or string',inputname(userfun));
-end
-
-if abs(nargout(userFG)) ~= 1 && abs(nargout(userFG)) ~= 2,
-  error('SNOPT:InputArgs','%s should return 1 or 2 arguments',inputname(userfun));
-  return
-end
-
-
 % Deal with options first.
 if nargin == 11 || nargin == 13 || nargin == 16 || nargin == 18,
   optionsLoc = nargin - 10;
@@ -179,13 +164,31 @@ if nargin == 11 || nargin == 13 || nargin == 16 || nargin == 18,
       elseif isa(options.stop,'function_handle'),
 	stopFun = options.stop;
       else
-	error('SNOPT:InputArgs','%s.stop should be a string or function handle',inputname(options));
+	error('SNOPT:InputArgs','options.stop should be a string or function handle');
       end
     end
   else
     optionsLoc = 0;
   end
 end
+
+
+% Check userfun
+userFG = checkFun(userfun,'SNOPT','userfun');
+
+gotDeriv = 0;
+try
+  [F,G] = userfun(x);
+  gotDeriv = 1;
+catch
+  try
+    F = userfun(x);
+    gotDeriv = 0;
+  catch
+    error('SNOPT:InputArgs','userfun should return 1 or 2 arguments');
+  end
+end
+
 
 ObjAdd = 0;
 ObjRow = 1;
@@ -202,7 +205,7 @@ if nargin == 10 || nargin == 11,
   nF = length(F0);
   n  = length(x);
 
-  if nargout(userFG) == 1,
+  if ~gotDeriv,
     % User is also not providing derivatives.
     % Call snJac to estimate the pattern of nonzeros for the Jacobian.
     warning('SNOPT:Input','Derivative structures estimated via snJac');
@@ -237,7 +240,7 @@ elseif nargin == 12 || nargin == 13,
   nF = length(F0);
   n  = length(x);
 
-  if nargout(userFG) == 1,
+  if ~gotDeriv,
     % Call snJac to estimate the pattern of nonzeros for the Jacobian.
     warning('SNOPT:Input','Derivative structures estimated via snJac');
     [A,iAfun,jAvar,iGfun,jGvar] = snJac(userFG,x,xlow,xupp,nF);
@@ -302,7 +305,8 @@ end
 [x,F,inform,xmul,Fmul, ...
  xstate,Fstate,itn,mjritn] = snoptmex(solveopt, ...
 				      istart, stopFun, probName, ...
-				      @(x,needF,needG)snfun(x,needF,needG,userFG,iGfun,jGvar), ...
+				      @(x,needF,needG)snfun(x,needF,needG,...
+						  userFG,gotDeriv,iGfun,jGvar), ...
 				      x, ...
 				      xlow, xupp, xmul, xstate, ...
 				      Flow, Fupp, Fmul, Fstate, ...
@@ -315,14 +319,14 @@ output.iterations = itn;
 output.majors     = mjritn;
 
 
-function [F,G] = snfun(x,needF,needG,userfun,iGfun,jGvar)
+function [F,G] = snfun(x,needF,needG,userfun,gotDeriv,iGfun,jGvar)
 % Wrapper for userfun
 % Compute functions and gradients (if necessary)
 
 F = []; G = [];
 
-if needG > 0,
-  if nargout(userfun) == 2,
+if needG > 0
+  if gotDeriv,
     [F,G] = userfun(x);
 
     % Convert G to vector format to match SNOPTA and (iGfun,jGvar)

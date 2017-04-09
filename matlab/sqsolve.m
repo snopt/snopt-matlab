@@ -74,7 +74,7 @@ solveOpt = 1;
 probName = '';
 start    = 'Cold';
 
-userHx = checkFun(Hx,'SQOPT');
+userHx = checkFun(Hx,'SQOPT','Hx');
 
 if nargin == 2,
   % sqsolve(Hx, f)
