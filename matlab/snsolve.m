@@ -375,8 +375,8 @@ if nargin == 9,
   end
 end
 
-F = [ fobj; c; ceq ];
-G = [ gobj; J; Jeq ];
+F = [  fobj; c; ceq ];
+G = [ gobj'; J; Jeq ];
 
 % Convert G to vector format to match SNOPTA and (iGfun,jGvar)
 [~,n] = size(G);
