@@ -116,7 +116,7 @@ myobj = checkFun(obj,'SNOPT','obj');
 
 gotGrad = 0;
 try
-  [fobj,gobj] = myobj(x0)
+  [fobj,gobj] = myobj(x0);
   gotGrad = 1;
 catch
   try
