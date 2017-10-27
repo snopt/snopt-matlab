@@ -10,7 +10,7 @@ if ( m == 0 ),
 end
 
 [iA,jA,vA] = find(A);
-neA        = size(vA,1);
+neA        = numel(vA);
 
 indA = zeros(neA,1);
 valA = zeros(neA,1);
