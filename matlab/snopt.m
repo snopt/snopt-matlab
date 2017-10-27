@@ -212,20 +212,9 @@ if nargin == 10 || nargin == 11,
     [A,iAfun,jAvar,iGfun,jGvar] = snJac(userFG,x,xlow,xupp,nF);
   else
     % User IS providing derivatives via userfun.
-    % Assume they are dense and nonlinear.
-    warning('SNOPT:Input','Derivatives provided but not structures: derivatives assumed to be dense.');
-
-    A = []; iAfun = []; jAvar = [];
-
-    ne    = nF*n;
-    iGfun = []; jGvar = [];
-    k = 0;
-    for i = 1:nF,
-      for j = 1:n,
-	k = k + 1;
-	iGfun(k) = i; jGvar(k) = j;
-      end
-    end
+    warning('SNOPT:Input',['Derivatives provided but not structures: estimating' ...
+		    ' structure via snJac.']);
+    [A,iAfun,jAvar,iGfun,jGvar] = snJac(userFG,x,xlow,xupp,nF);
   end
 
 elseif nargin == 12 || nargin == 13,
@@ -246,11 +235,9 @@ elseif nargin == 12 || nargin == 13,
     [A,iAfun,jAvar,iGfun,jGvar] = snJac(userFG,x,xlow,xupp,nF);
   else
     % User IS providing derivatives via userfun.
-    % Assume they are dense and nonlinear.
-    warning('SNOPT:Input','Derivative provided but not structures: derivatives assumed to be dense.');
-    A  = []; iAfun = []; jAvar = [];
-    ne = nF*n;
-    iGfun = [1:ne]; jGvar = [1:ne];
+    warning('SNOPT:Input',['Derivatives provided but not structures: estimating' ...
+		    ' structure via snJac.']);
+    [A,iAfun,jAvar,iGfun,jGvar] = snJac(userFG,x,xlow,xupp,nF);
   end
 
   ObjAdd = varargin{1};
