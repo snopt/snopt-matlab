@@ -1,5 +1,5 @@
- function [F,G] = hsmainusrfun(x)
-%function [F,G] = hsmainusrfun(x)
+ function [F,G] = hs13mainusrfun(x)
+%function [F,G] = hs13mainusrfun(x)
 % Defines the nonlinear part of the function and derivatives
 % for the problem HS47.
 
