@@ -1,5 +1,5 @@
- function [F,G] = hsuserfun(x)
-%function [F,G] = hsuserfun(x)
+ function [F,G] = hs13userfun(x)
+%function [F,G] = hs13userfun(x)
 % Defines the nonlinear part of the function and derivatives
 % for HS 13.
 
