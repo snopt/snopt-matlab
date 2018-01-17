@@ -178,11 +178,11 @@ userFG = checkFun(userfun,'SNOPT','userfun');
 
 gotDeriv = 0;
 try
-  [F,G] = userfun(x);
+  [F,G] = userFG(x);
   gotDeriv = 1;
 catch
   try
-    F = userfun(x);
+    F = userFG(x);
     gotDeriv = 0;
   catch
     error('SNOPT:InputArgs','userfun should return 1 or 2 arguments');
