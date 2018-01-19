@@ -74,7 +74,13 @@ solveOpt = 1;
 probName = '';
 start    = 'Cold';
 
-userHx = checkFun(Hx,'SQOPT','Hx');
+if isnumeric(Hx) && Hx == 0,
+  warning('No Hessian detected:  the problem is an LP');
+  userHx = 0;
+else
+  userHx = checkFun(Hx,'SQOPT','Hx');
+end
+
 
 if nargin == 2,
   % sqsolve(Hx, f)

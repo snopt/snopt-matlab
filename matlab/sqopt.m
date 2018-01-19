@@ -85,7 +85,14 @@ if nargin == 9 || nargin == 11,
   end
 end
 
-userHx = checkFun(Hx,'SQOPT','Hx');
+
+if isnumeric(Hx) && Hx == 0,
+  warning('No Hessian detected: the problem is an LP');
+  userHx = 0;
+else
+  userHx = checkFun(Hx,'SQOPT','Hx');
+end
+
 
 if nargin == 8 || nargin == 9,
   % sqopt(Hx, c, x0, xl, xu, A, al, au)

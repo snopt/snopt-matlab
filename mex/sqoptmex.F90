@@ -210,7 +210,7 @@ subroutine sqmxSolve(nlhs, plhs, nrhs, prhs)
   mwPointer        :: mxDuplicateArray, mxGetM, mxGetN, mxGetPr, &
                       mxCreateDoubleMatrix, mxCreateDoubleScalar
   mwSize           :: dimx, dimy
-  integer*4        :: mxIsChar, mxIsClass, mxIsEmpty
+  integer*4        :: mxIsChar, mxIsClass, mxIsEmpty, mxIsNumeric
   double precision :: mxGetScalar
 
   ! SQOPT
@@ -261,6 +261,8 @@ subroutine sqmxSolve(nlhs, plhs, nrhs, prhs)
   m   = mxGetScalar(prhs(4))
   n   = mxGetScalar(prhs(5))
 
+  call check('SQOPT', n, m)
+
   nnH   = n
   neA   = mxGetScalar(prhs(13))
   ncObj = mxGetM(prhs(7))
@@ -272,9 +274,14 @@ subroutine sqmxSolve(nlhs, plhs, nrhs, prhs)
   !---------------------------------------------------------------------
   ! Hessian matrix
   !---------------------------------------------------------------------
-  if (mxIsClass(prhs(6), 'function_handle') /= 1) &
-       call mexErrMsgIdAndTxt('SQOPT:FunArg','Wrong input type for Hx')
-  HxHandle = mxDuplicateArray(prhs(6))
+  if (mxIsNumeric(prhs(6)) == 1) then
+     HxHandle = 0
+     nnH      = 0
+  else
+     if (mxIsClass(prhs(6), 'function_handle') /= 1) &
+          call mexErrMsgIdAndTxt('SQOPT:FunArg','Wrong input type for Hx')
+     HxHandle = mxDuplicateArray(prhs(6))
+  end if
 
 
   !---------------------------------------------------------------------

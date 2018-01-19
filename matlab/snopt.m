@@ -109,6 +109,21 @@ function [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt(x, xlow, xupp, xmul
 % iGfun, jGvar   hold the indices of the nonlinear elements in the Jacobian
 %                of F.
 %
+%            More IMPORTANT details:
+%         1) The indices (iAfun,jAvar) must be DISJOINT from (iGfun,jGvar).
+%            A nonzero element in F' must be either an element of G or an
+%            element of A, but not the sum of the two.
+%
+%         2) If the user does not wish to provide iAfun, jAvar, iGfun,
+%            jGvar, then snopt() will determine them by calling snJac().
+%
+%            WARNING: In this case, the derivative level will be set to zero
+%            if constant elements exist.  This is because the linear
+%            elements have not yet been deleted from the definition of
+%            userfun.  Furthermore, if G is given in vector form, the
+%            ordering of G may not necessarily correspond to (iGfun,jGvar)
+%            computed by snJac().
+%
 % options        is a struct.
 %                options.name   is the problem name
 %                options.stop   is the "snSTOP" function called at every
@@ -116,20 +131,6 @@ function [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt(x, xlow, xupp, xmul
 %                options.start  'Cold', 'Warm'
 %
 %
-% More IMPORTANT details:
-%   1) The indices (iAfun,jAvar) must be DISJOINT from (iGfun,jGvar).
-%      A nonzero element in F' must be either an element of G or an
-%      element of A, but not the sum of the two.
-%
-%   2) If the user does not wish to provide iAfun, jAvar, iGfun,
-%      jGvar, then snopt() will determine them by calling snJac().
-%
-%      WARNING: In this case, the derivative level will be set to zero
-%      if constant elements exist.  This is because the linear
-%      elements have not yet been deleted from the definition of
-%      userfun.  Furthermore, if G is given in vector form, the
-%      ordering of G may not necessarily correspond to (iGfun,jGvar)
-%      computed by snJac().
 solveopt = 1;
 
 probName   = '';
