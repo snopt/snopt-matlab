@@ -6,7 +6,6 @@ sqprint('t1dietLP.out');
 t1diet.spc = which('t1diet.spc');
 sqspec(t1diet.spc);
 
-
 % Linear objective term
 c = [3   24   13    9   20   19];
 
@@ -37,4 +36,3 @@ options.name = 't1dietlp';
 
 sqscreen off;
 sqend;
-

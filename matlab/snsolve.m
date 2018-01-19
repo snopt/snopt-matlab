@@ -29,31 +29,38 @@ function [x,fval,exitflag,output,lambda,states] = snsolve(obj,x0,A,b,varargin)
 %                A_eq x  = b_eq,
 %                xlow   <= x <= xupp.
 %
+% Input:
+%   options      is a struct.
+%                options.name   is the problem name
+%                options.stop   is the "snSTOP" function called at every
+%                               major iteration.
+%                options.start  'Cold', 'Warm'
+%
 % Output:
-%   x                  solution
+%   x            solution
 %
-%   fval               final objective value at x
+%   fval         final objective value at x
 %
-%   exitflag           exit condition from SNOPT
+%   exitflag     exit condition from SNOPT
 %
-%   output             is a struct with the following fields
-%                      output.info        exit code from SNOPT (same as exitflag)
-%                      output.iterations  the total number of minor iterations
-%                      output.majors      the total number of major iterations
+%   output       is a struct with the following fields
+%                output.info        exit code from SNOPT (same as exitflag)
+%                output.iterations  the total number of minor iterations
+%                output.majors      the total number of major iterations
 %
-%   lambda             are the final multipliers
-%                      lambda.x            variables
-%                      lambda.ineqnonlin   nonlinear inequalities
-%                      lambda.eqnonlin     nonlinear equalities
-%                      lambda.ineqlin      linear inequalities
-%                      lambda.eqlin        linear equalities
+%   lambda       are the final multipliers
+%                lambda.x            variables
+%                lambda.ineqnonlin   nonlinear inequalities
+%                lambda.eqnonlin     nonlinear equalities
+%                lambda.ineqlin      linear inequalities
+%                lambda.eqlin        linear equalities
 %
-%   states             are the final states
-%                      states.x            variables
-%                      states.ineqnonlin   nonlinear inequalities
-%                      states.eqnonlin     nonlinear equalities
-%                      states.ineqlin      linear inequalities
-%                      states.eqlin        linear equalities
+%   states       are the final states
+%                states.x            variables
+%                states.ineqnonlin   nonlinear inequalities
+%                states.eqnonlin     nonlinear equalities
+%                states.ineqlin      linear inequalities
+%                states.eqlin        linear equalities
 %
 %
 solveopt = 1;

@@ -26,38 +26,42 @@ function [x,obj,INFO,output,lambda,states] = sqopt(Hx, c, x0, xl, xu, A, al, au,
 %
 %
 % INPUT:
-%  x0                is the initial guess for x
+%  x0       is the initial guess for x
 %
-%  Hx                is a Matlab function that computes H*x for a given x.
-%                    Hx can be a Matlab function handle or a string
+%  Hx       is a Matlab function that computes H*x for a given x.
+%           Hx can be a Matlab function handle or a string
 %
-%  c                 is the linear term of the quadratic objective
+%  c        is the linear term of the quadratic objective
 %
-%  xl, xu            are the upper and lower bounds on x
+%  xl, xu   are the upper and lower bounds on x
 %
-%  A                 is the linear constraint matrix. A can be a dense
-%                    matrix or a sparse matrix.
+%  A        is the linear constraint matrix. A can be a dense
+%           matrix or a sparse matrix.
 %
-%  al, au            are the upper and lower bounds on the linear constraints A*x
+%  al, au   are the upper and lower bounds on the linear constraints A*x
+%
+%  options  is a struct.
+%              options.name   is the problem name
+%              options.start  'Cold', 'Warm'
 %
 % OUTPUT:
-%     x        is the final point
+%  x        is the final point
 %
-%     obj      is the final objective value
+%  obj      is the final objective value
 %
-%     exitFlag is the exit flag returned by DQOPT
+%  exitFlag is the exit flag returned by DQOPT
 %
-%     output   is a structure containing run information --
-%              output.iterations is the total number of iterations
-%              output.funcCount   is the total number of function evaluations
+%  output   is a structure containing run information --
+%           output.iterations is the total number of iterations
+%           output.funcCount   is the total number of function evaluations
 %
-%     lambda   is a structure containing the multipliers
-%              lambda.x          are for the variables
-%              lambda.linear     are for the linear constraints
+%  lambda   is a structure containing the multipliers
+%           lambda.x          are for the variables
+%           lambda.linear     are for the linear constraints
 %
-%     states   is a structure
-%              states.x          are for the variables
-%              states.linear     are for the linear constraints
+%  states   is a structure
+%           states.x          are for the variables
+%           states.linear     are for the linear constraints
 %
 
 solveOpt = 1;
