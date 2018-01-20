@@ -261,8 +261,6 @@ subroutine sqmxSolve(nlhs, plhs, nrhs, prhs)
   m   = mxGetScalar(prhs(4))
   n   = mxGetScalar(prhs(5))
 
-  call check('SQOPT', n, m)
-
   nnH   = n
   neA   = mxGetScalar(prhs(13))
   ncObj = mxGetM(prhs(7))
@@ -571,14 +569,7 @@ subroutine snmxSpecs(nlhs, plhs, nrhs, prhs)
   rewind (iSpecs)
   close(iSpecs)
 
-  ! sqSpec will return info == 101 or 107 if successful
-  ! The matlab version returns 0 if successful
-  if (info == 101 .or. info == 107) then
-     rvalue = 0
-  else
-     rvalue = 1
-  end if
-
+  rvalue = info
   plhs(1) = mxCreateDoubleScalar (rvalue)
 
 end subroutine snmxSpecs

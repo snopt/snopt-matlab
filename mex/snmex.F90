@@ -126,7 +126,7 @@ contains
     m = mxGetN(pm)
     if (m /= n) then
        write(str,100) name, m, n
-       call mexErrMsgTxt (str)
+       call mexErrMsgIdAndTxt('SNOPT:InputArgs',str)
     end if
 
     return
@@ -151,7 +151,7 @@ contains
     m = mxGetM(pm)
     if (m /= n) then
        write(str,100) name, m, n
-       call mexErrMsgTxt (str)
+       call mexErrMsgIdAndTxt('SNOPT:InputArgs',str)
     end if
 
     return

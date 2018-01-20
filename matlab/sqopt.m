@@ -1,5 +1,5 @@
-function [x,obj,INFO,output,lambda,states] = sqopt(Hx, c, x0, xl, xu, A, al, au, varargin)
-% function [x,obj,INFO,output,lambda,states] = sqopt(Hx, c, x0, xl, xu, A, al, au, varargin)
+function [x,obj,info,output,lambda,states] = sqopt(Hx, c, x0, xl, xu, A, al, au, varargin)
+% function [x,obj,info,output,lambda,states] = sqopt(Hx, c, x0, xl, xu, A, al, au, varargin)
 %
 % This function solves the quadratic optimization problem:
 %   minimize:
@@ -22,14 +22,15 @@ function [x,obj,INFO,output,lambda,states] = sqopt(Hx, c, x0, xl, xu, A, al, au,
 %  [] = sqopt(Hx, c, x0, xl, xu, A, al, au, states, lambda)
 %  [] = sqopt(Hx, c, x0, xl, xu, A, al, au, states, lambda, options)
 %
-%  [x,obj,INFO,output,lambda,states] = sqopt(...)
+%  [x,obj,info,output,lambda,states] = sqopt(...)
 %
 %
 % INPUT:
 %  x0       is the initial guess for x
 %
 %  Hx       is a Matlab function that computes H*x for a given x.
-%           Hx can be a Matlab function handle or a string
+%           Hx can be a Matlab function handle or a string.  If the
+%           problem is an LP (H = 0), then set Hx = 0 (or call lpopt).
 %
 %  c        is the linear term of the quadratic objective
 %
@@ -49,7 +50,7 @@ function [x,obj,INFO,output,lambda,states] = sqopt(Hx, c, x0, xl, xu, A, al, au,
 %
 %  obj      is the final objective value
 %
-%  exitFlag is the exit flag returned by DQOPT
+%  info     is the exit flag returned by the solver
 %
 %  output   is a structure containing run information --
 %           output.iterations is the total number of iterations
@@ -163,14 +164,14 @@ al  = colvec(al,'al',1,m);
 au  = colvec(au,'au',1,m);
 c   = colvec(c,'c',1,0);
 
-[x,obj,INFO,itn,y,state] = sqoptmex(solveOpt, start, probName, ...
+[x,obj,info,itn,y,state] = sqoptmex(solveOpt, start, probName, ...
 				    m, n, userHx, c, ...
 				    x0, xl, xu, xstate, xmul, ...
 				    neA, indA, locA, valA, al, au, astate, amul);
 
 % Set output
 output.iterations = itn;
-output.info       = INFO;
+output.info       = info;
 
 zero     = zeros(n,1);
 states.x = state(1:n);

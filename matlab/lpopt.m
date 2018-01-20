@@ -1,5 +1,5 @@
-function [x,obj,INFO,output,lambda,states] = lpopt(c, x0, xl, xu, A, al, au, varargin)
-% function [x,obj,INFO,output,lambda,states] = lpopt(c, x0, xl, xu, A, al, au, varargin)
+function [x,obj,info,output,lambda,states] = lpopt(c, x0, xl, xu, A, al, au, varargin)
+% function [x,obj,info,output,lambda,states] = lpopt(c, x0, xl, xu, A, al, au, varargin)
 %
 % This function solves the linear optimization problem:
 %   minimize:
@@ -21,7 +21,7 @@ function [x,obj,INFO,output,lambda,states] = lpopt(c, x0, xl, xu, A, al, au, var
 %  [] = lpopt(c, x0, xl, xu, A, al, au, states, lambda)
 %  [] = lpopt(c, x0, xl, xu, A, al, au, states, lambda, options)
 %
-%  [x,obj,INFO,output,lambda,states] = lpopt(...)
+%  [x,obj,info,output,lambda,states] = lpopt(...)
 %
 %
 % INPUT:
@@ -45,7 +45,7 @@ function [x,obj,INFO,output,lambda,states] = lpopt(c, x0, xl, xu, A, al, au, var
 %
 %  obj      is the final objective value
 %
-%  exitFlag is the exit flag returned by DQOPT
+%  info     is the exit flag returned by the solver
 %
 %  output   is a structure containing run information --
 %           output.iterations is the total number of iterations
@@ -152,14 +152,14 @@ au  = colvec(au,'au',1,m);
 c   = colvec(c,'c',1,0);
 
 userHx = 0;
-[x,obj,INFO,itn,y,state] = sqoptmex(solveOpt, start, probName, ...
+[x,obj,info,itn,y,state] = sqoptmex(solveOpt, start, probName, ...
 				    m, n, userHx, c, ...
 				    x0, xl, xu, xstate, xmul, ...
 				    neA, indA, locA, valA, al, au, astate, amul);
 
 % Set output
 output.iterations = itn;
-output.info       = INFO;
+output.info       = info;
 
 zero     = zeros(n,1);
 states.x = state(1:n);

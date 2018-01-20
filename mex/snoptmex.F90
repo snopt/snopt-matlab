@@ -279,7 +279,7 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
   if (mxIsNumeric(prhs(3)) /= 1) then
      ! Check if STOP functions is actually a function
      if (mxIsClass(prhs(3), 'function_handle') /= 1) &
-          call mexErrMsgIdAndTxt('DNOPT:INputArgs','Wrong input type for dnSTOP')
+          call mexErrMsgIdAndTxt('SNOPT:INputArgs','Wrong input type for snSTOP')
      stopHandle = mxDuplicateArray(prhs(3))
   end if
 
@@ -289,7 +289,7 @@ subroutine snmxSolve (nlhs, plhs, nrhs, prhs)
   !-----------------------------------------------------------------------------
   probName = ''
   if (mxIsChar(prhs(4)) /= 1) &
-       call mexErrMsgIdAndTxt('DNOPT:InputArg','Wrong input type for problem name')
+       call mexErrMsgIdAndTxt('SNOPT:InputArg','Wrong input type for problem name')
 
   if (mxGetN(prhs(4)) > 0) then
      dimx = min(8,mxGetN(prhs(4)))
@@ -785,14 +785,7 @@ subroutine snmxSpecs(nlhs, plhs, nrhs, prhs)
   rewind (iSpecs)
   close(iSpecs)
 
-  ! snSpec will return info == 101 or 107 if successful
-  ! The matlab version returns 0 if successful
-  if (info == 101 .or. info == 107) then
-     rvalue = 0
-  else
-     rvalue = 1
-  end if
-
+  rvalue = info
   plhs(1) = mxCreateDoubleScalar(rvalue)
 
 end subroutine snmxSpecs
