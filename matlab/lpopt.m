@@ -31,8 +31,13 @@ function [x,obj,info,output,lambda,states] = lpopt(c, x0, xl, xu, A, al, au, var
 %
 %  xl, xu   are the upper and lower bounds on x
 %
-%  A        is the linear constraint matrix. A can be a dense
-%           matrix or a sparse matrix.
+%  A        is the linear constraint matrix. A can be a structure, or a
+%           dense or sparse matrix.
+%           If A is a structure, then A is represented as a
+%           sparse-by-column matrix and should  have fields:
+%               A.loc -- column pointers
+%               A.ind -- row indices
+%               A.val -- matrix values
 %
 %  al, au   are the upper and lower bounds on the linear constraints A*x
 %
@@ -67,8 +72,8 @@ start    = 'Cold';
 
 % Deal with options.
 optionsLoc = 0;
-if nargin == 9 || nargin == 11,
-  optionsLoc = nargin - 8;
+if nargin == 8 || nargin == 10,
+  optionsLoc = nargin - 7;
   if isstruct(varargin{optionsLoc}),
     options = varargin{optionsLoc};
     % Name
@@ -86,14 +91,14 @@ if nargin == 9 || nargin == 11,
 end
 
 
-if nargin == 8 || nargin == 9,
+if nargin == 7 || nargin == 8,
   % lpopt(c, x0, xl, xu, A, al, au)
   % lpopt(c, x0, xl, xu, A, al, au, options)
 
   xstate = []; xmul = [];
   astate = []; amul = [];
 
-elseif nargin == 10 || nargin == 11,
+elseif nargin == 9 || nargin == 10,
   % lpopt(c, x0, xl, xu, A, al, au, states, lambda)
   % lpopt(c, x0, xl, xu, A, al, au, states, lambda, options)
 
@@ -128,21 +133,37 @@ if isempty(A),
   warning('LPOPT:InputArgs','No linear constraints detected; dummy constraint created');
 
   m = 1;
-  n = size(x0,1);
+  n = numel(x0);
 
   neA     = 1;
   indA(1) = 1;
   valA(1) = 1.0;
 
+  locA    = zeros(n+1,1);
   locA(1) = 1;
   locA(2:n+1) = 2;
-  locA    = locA';
   al = [-inf]; au = [inf];
 
 else
-  [m,n]                = size(A);
-  [neA,indA,locA,valA] = crd2spr(A);
+  if isstruct(A),
+    if isfield(A,'ind') && isfield(A,'loc') && isfield(A,'val'),
+      % In sparse-by-col form
+      n    = numel(x0);
+      locA = colvec(A.loc,'A.loc',1,n+1);
+      indA = colvec(A.ind,'A.ind',1,0);
+      valA = colvec(A.val,'A.val',1,0);
+      m    = max(indA);
+      neA  = numel(valA);
+    else
+      error('LPOPT:InputArgs','Matrix must have ind, loc, and val fields')
+    end
+
+  else
+    [m,n]                = size(A);
+    [neA,indA,locA,valA] = crd2spr(A);
+  end
 end
+
 
 x0  = colvec(x0,'x0',1,n);
 xl  = colvec(xl,'xl',1,n);

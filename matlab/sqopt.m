@@ -1,5 +1,5 @@
-function [x,obj,info,output,lambda,states] = sqopt(Hx, c, x0, xl, xu, A, al, au, varargin)
-% function [x,obj,info,output,lambda,states] = sqopt(Hx, c, x0, xl, xu, A, al, au, varargin)
+function [x,obj,info,output,lambda,states] = sqopt(H, c, x0, xl, xu, A, al, au, varargin)
+% function [x,obj,info,output,lambda,states] = sqopt(H, c, x0, xl, xu, A, al, au, varargin)
 %
 % This function solves the quadratic optimization problem:
 %   minimize:
@@ -16,11 +16,11 @@ function [x,obj,info,output,lambda,states] = sqopt(Hx, c, x0, xl, xu, A, al, au,
 %  al, au   are the lower and upper bounds of the linear constraints
 %
 % Calling sequences:
-%  [] = sqopt(Hx, c, x0, xl, xu, A, al, au)
-%  [] = sqopt(Hx, c, x0, xl, xu, A, al, au, options)
+%  [] = sqopt(H, c, x0, xl, xu, A, al, au)
+%  [] = sqopt(H, c, x0, xl, xu, A, al, au, options)
 %
-%  [] = sqopt(Hx, c, x0, xl, xu, A, al, au, states, lambda)
-%  [] = sqopt(Hx, c, x0, xl, xu, A, al, au, states, lambda, options)
+%  [] = sqopt(H, c, x0, xl, xu, A, al, au, states, lambda)
+%  [] = sqopt(H, c, x0, xl, xu, A, al, au, states, lambda, options)
 %
 %  [x,obj,info,output,lambda,states] = sqopt(...)
 %
@@ -28,16 +28,22 @@ function [x,obj,info,output,lambda,states] = sqopt(Hx, c, x0, xl, xu, A, al, au,
 % INPUT:
 %  x0       is the initial guess for x
 %
-%  Hx       is a Matlab function that computes H*x for a given x.
-%           Hx can be a Matlab function handle or a string.  If the
-%           problem is an LP (H = 0), then set Hx = 0 (or call lpopt).
+%  H        is a Matlab function (either a function handle or string)
+%           that computes H*x for a given x or a matrix (dense or sparse).
+%           If the problem is an LP (H = 0), then set H = 0 or H = []
+%           (or call lpopt).
 %
 %  c        is the linear term of the quadratic objective
 %
 %  xl, xu   are the upper and lower bounds on x
 %
-%  A        is the linear constraint matrix. A can be a dense
-%           matrix or a sparse matrix.
+%  A        is the linear constraint matrix. A can be a structure, or a
+%           dense or sparse matrix.
+%           If A is a structure, then A is represented as a
+%           sparse-by-column matrix and should  have fields:
+%               A.loc -- column pointers
+%               A.ind -- row indices
+%               A.val -- matrix values
 %
 %  al, au   are the upper and lower bounds on the linear constraints A*x
 %
@@ -91,24 +97,33 @@ if nargin == 9 || nargin == 11,
 end
 
 
-if isnumeric(Hx) && Hx == 0,
-  warning('No Hessian detected: the problem is an LP');
-  userHx = 0;
+if isempty(H),
+    warning('No Hessian detected: the problem is an LP');
+    userHx = 0;
 else
-  userHx = checkFun(Hx,'SQOPT','Hx');
+  if isnumeric(H),
+    if H == 0,
+      warning('No Hessian detected: the problem is an LP');
+      userHx = 0;
+    else
+      userHx = @(x)myHx(H,x);
+    end
+  else
+    userHx = checkFun(H,'SQOPT','Hx');
+  end
 end
 
 
 if nargin == 8 || nargin == 9,
-  % sqopt(Hx, c, x0, xl, xu, A, al, au)
-  % sqopt(Hx, c, x0, xl, xu, A, al, au, options)
+  % sqopt(H, c, x0, xl, xu, A, al, au)
+  % sqopt(H, c, x0, xl, xu, A, al, au, options)
 
   xstate = []; xmul = [];
   astate = []; amul = [];
 
 elseif nargin == 10 || nargin == 11,
-  % sqopt(Hx, c, x0, xl, xu, A, al, au, states, lambda)
-  % sqopt(Hx, c, x0, xl, xu, A, al, au, states, lambda, options)
+  % sqopt(H, c, x0, xl, xu, A, al, au, states, lambda)
+  % sqopt(H, c, x0, xl, xu, A, al, au, states, lambda, options)
 
   states = varargin{1};
   lambda = varargin{2};
@@ -141,20 +156,35 @@ if isempty(A),
   warning('SQOPT:InputArgs','No linear constraints detected; dummy constraint created');
 
   m = 1;
-  n = size(x0,1);
+  n = numel(x0);
 
   neA     = 1;
   indA(1) = 1;
   valA(1) = 1.0;
 
+  locA    = zeros(n+1,1);
   locA(1) = 1;
   locA(2:n+1) = 2;
-  locA    = locA';
   al = [-inf]; au = [inf];
 
 else
-  [m,n]                = size(A);
-  [neA,indA,locA,valA] = crd2spr(A);
+  if isstruct(A),
+    if isfield(A,'ind') && isfield(A,'loc') && isfield(A,'val'),
+      % In sparse-by-col form
+      n    = numel(x0);
+      locA = colvec(A.loc,'A.loc',1,n+1);
+      indA = colvec(A.ind,'A.ind',1,0);
+      valA = colvec(A.val,'A.val',1,0);
+      m    = max(indA);
+      neA  = numel(valA);
+    else
+      error('SQOPT:InputArgs','Matrix must have ind, loc, and val fields')
+    end
+
+  else
+    [m,n]                = size(A);
+    [neA,indA,locA,valA] = crd2spr(A);
+  end
 end
 
 x0  = colvec(x0,'x0',1,n);
@@ -181,3 +211,8 @@ if m > 0,
   states.linear = state(n+1:n+m);
   lambda.linear = y(n+1:n+m);
 end
+
+
+
+function [Hx] = myHx(H,x)
+  Hx = H*x;
