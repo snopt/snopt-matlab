@@ -1,8 +1,7 @@
-function [x,fval,exitFlag,output,lambda] = sqsolve(Hx, f, varargin)
-% function [x,fval,exitFlag,output,lambda] = sqsolve(Hx, f, varargin)
+function [x,fval,exitFlag,output,lambda] = sqsolve(H, f, varargin)
+% function [x,fval,exitFlag,output,lambda] = sqsolve(H, f, varargin)
 %
 % This function interface is similar to the MATLAB function quadprog.
-% However, the Hessian is provided via a user-defined function Hx.
 %
 % Currently, the only field recognized in the 'option's arguments are
 %                options.name,  options.start
@@ -11,18 +10,18 @@ function [x,fval,exitFlag,output,lambda] = sqsolve(Hx, f, varargin)
 %
 %
 % Calling sequences:
-%  x = sqsolve(Hx, f)
-%  x = sqsolve(Hx, f, A, b)
-%  x = sqsolve(Hx, f, A, b, Aeq, beq)
-%  x = sqsolve(Hx, f, A, b, Aeq, beq, lb, ub)
-%  x = sqsolve(Hx, f, A, b, Aeq, beq, lb, ub, x0)
-%  x = sqsolve(Hx, f, A, b, Aeq, beq, lb, ub, x0, options)
-%  x = sqsolve(Hx, f, A, b, Aeq, beq, lb, ub, x0, lambda, states, options)
+%  x = sqsolve(H, f)
+%  x = sqsolve(H, f, A, b)
+%  x = sqsolve(H, f, A, b, Aeq, beq)
+%  x = sqsolve(H, f, A, b, Aeq, beq, lb, ub)
+%  x = sqsolve(H, f, A, b, Aeq, beq, lb, ub, x0)
+%  x = sqsolve(H, f, A, b, Aeq, beq, lb, ub, x0, options)
+%  x = sqsolve(H, f, A, b, Aeq, beq, lb, ub, x0, lambda, states, options)
 %
-%  [x,fval]                        = sqsolve(Hx, f, ...)
-%  [x,fval,exitflag]               = sqsolve(Hx, f, ...)
-%  [x,fval,exitflag,output]        = sqsolve(Hx, f, ...)
-%  [x,fval,exitflag,output,lambda] = sqsolve(Hx, f, ...)
+%  [x,fval]                        = sqsolve(H, f, ...)
+%  [x,fval,exitflag]               = sqsolve(H, f, ...)
+%  [x,fval,exitflag,output]        = sqsolve(H, f, ...)
+%  [x,fval,exitflag,output,lambda] = sqsolve(H, f, ...)
 %
 %
 % Solve the given quadratic problem:
@@ -32,8 +31,10 @@ function [x,fval,exitFlag,output,lambda] = sqsolve(Hx, f, varargin)
 %                     Aeq*x   = beq
 %
 %   INPUT:
-%     Hx       is a user-defined function that returns the product of a
-%              vector and the Hessian matrix of the objective
+%     H        is a Matlab function (either a function handle or string)
+%              that computes H*x for a given x or a matrix (dense or sparse).
+%              If the problem is an LP (H = 0), then set H = 0 or H = []
+%              (or call lpopt).
 %
 %     f        is the linear term of the objective
 %
@@ -74,16 +75,25 @@ solveOpt = 1;
 probName = '';
 start    = 'Cold';
 
-if isnumeric(Hx) && Hx == 0,
-  warning('No Hessian detected:  the problem is an LP');
-  userHx = 0;
+if isempty(H),
+    warning('No Hessian detected: the problem is an LP');
+    userHx = 0;
 else
-  userHx = checkFun(Hx,'SQOPT','Hx');
+  if isnumeric(H),
+    if H == 0,
+      warning('No Hessian detected: the problem is an LP');
+      userHx = 0;
+    else
+      userHx = @(x)myHx(H,x);
+    end
+  else
+    userHx = checkFun(H,'SQOPT','H');
+  end
 end
 
 
 if nargin == 2,
-  % sqsolve(Hx, f)
+  % sqsolve(H, f)
   A   = [];  b   = [];
   Aeq = [];  beq = [];
   lb  = [];  ub  = [];
@@ -93,7 +103,7 @@ if nargin == 2,
   astate = []; amul = [];
 
 elseif nargin == 4,
-  % sqsolve(Hx, f, A, b)
+  % sqsolve(H, f, A, b)
   A = varargin{1};
   b = varargin{2};
   Aeq = [];  beq = [];
@@ -105,7 +115,7 @@ elseif nargin == 4,
 
 
 elseif nargin == 6,
-  % sqsolve(Hx, f, A, b, Aeq, beq)
+  % sqsolve(H, f, A, b, Aeq, beq)
   A   = varargin{1};
   b   = varargin{2};
   Aeq = varargin{3};
@@ -117,7 +127,7 @@ elseif nargin == 6,
   astate = []; amul = [];
 
 elseif nargin == 8,
-  % sqsolve(Hx, f, A, b, Aeq, beq, lb, ub)
+  % sqsolve(H, f, A, b, Aeq, beq, lb, ub)
   A   = varargin{1};
   b   = varargin{2};
   Aeq = varargin{3};
@@ -130,7 +140,7 @@ elseif nargin == 8,
   astate = []; amul = [];
 
 elseif nargin == 9,
-  % sqsolve(Hx, f, A, b, Aeq, beq, lb, ub, x0)
+  % sqsolve(H, f, A, b, Aeq, beq, lb, ub, x0)
   A   = varargin{1};
   b   = varargin{2};
   Aeq = varargin{3};
@@ -143,8 +153,8 @@ elseif nargin == 9,
   astate = []; amul = [];
 
 elseif nargin == 10 || nargin == 12,
-  % sqsolve(Hx, f, A, b, Aeq, beq, lb, ub, x0, options)
-  % sqsolve(Hx, f, A, b, Aeq, beq, lb, ub, x0, lambda, states, options)
+  % sqsolve(H, f, A, b, Aeq, beq, lb, ub, x0, options)
+  % sqsolve(H, f, A, b, Aeq, beq, lb, ub, x0, lambda, states, options)
   A   = varargin{1};
   b   = varargin{2};
   Aeq = varargin{3};
@@ -214,3 +224,7 @@ if m > 0,
   states.linear = state(n+1:n+m);
   lambda.linear = y(n+1:n+m);
 end
+
+
+function [Hx] = myHx(H,x)
+  Hx = H*x;
