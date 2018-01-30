@@ -1,23 +1,18 @@
-function [x,F,xmul,Fmul,INFO] = hs116()
+function [x,F,xmul,Fmul,INFO] = hs116G()
 
-snprint('hs116.out');
-
-hs116.spc = which('hs116.spc');
-snspec (hs116.spc);
-
-snseti('Major Iteration limit', 250);
+options.printfile = 'hs116.out';
+options.specsfile = which('hs116.spc');
+options.screen = 'on';
+options.name = 'hs116G;
 
 [x,xlow,xupp,xmul,xstate, ...
    Flow,Fupp,Fmul,Fstate, ...
- ObjAdd,ObjRow,A,iAfun,jAvar,iGfun,jGvar] = hs116data;
+ ObjAdd,ObjRow,A.val,A.row,A.col,G.row,G.col] = hs116data;
 
-[x,F,INFO,xmul,Fmul]= snopt( x, xlow, xupp, xmul, xstate,  ...
-                             Flow, Fupp, Fmul, Fstate,     ...
-                             @hs116userfun, ObjAdd, ObjRow, ...
-                             A, iAfun, jAvar, iGfun, jGvar );
-
-snprint off; % Closes the file and empties the print buffer
-snend;
+[x,F,INFO,xmul,Fmul]= snopt(x, xlow, xupp, xmul, xstate,  ...
+                            Flow, Fupp, Fmul, Fstate,     ...
+                            @hs116userfun, ObjAdd, ObjRow, ...
+                            A, G, options);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [x,xlow,xupp,xmul,xstate, ...

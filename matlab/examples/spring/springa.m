@@ -1,23 +1,19 @@
-function [x,xmul,F,Fmul,INFO] = springa()
+function [x,F,xmul,Fmul,INFO] = springa()
 
-snscreen on;
-snprint('spring.out');
 
-specs = which('spring.spc');
-snspec (specs);
-
+options.screen = 'on';
+options.printfile = 'spring.out';
+options.specsfile = which('spring.spc');
+options.name = 'spring';
 
 [x,xlow,xupp,xmul,xstate, ...
    Flow,Fupp,Fmul,Fstate, ...
  ObjAdd,ObjRow] = springData;
 
-options.name = 'spring';
-[x,F,INFO,xmul,Fmul]= snopt( x, xlow, xupp, xmul, xstate,  ...
-                             Flow, Fupp, Fmul, Fstate,     ...
-                             @springFun, ObjAdd, ObjRow, options);
+[x,F,INFO,xmul,Fmul]= snopt(x, xlow, xupp, xmul, xstate,  ...
+                            Flow, Fupp, Fmul, Fstate,     ...
+                            @springFun, ObjAdd, ObjRow, options);
 
-snprint off; % Closes the file and empties the print buffer
-snend;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [x,xlow,xupp,xmul,xstate, ...

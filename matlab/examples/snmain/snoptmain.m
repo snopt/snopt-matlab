@@ -3,25 +3,22 @@
 % Defines the NLP problem and calls the simplest
 % version of the mex interface for snopt.
 
-snprint('snoptmain.out');
+options.name = 'snmain';
+options.screen = 'on';
 
-snoptmain.spc = which('snoptmain.spc');
-snspec( snoptmain.spc );
-
-snseti('Major Iteration limit', 250);
+options.printfile = 'snoptmain.out';
+options.specesfile = which('snoptmain.spc');
 
 %Get condensed data for the Hexagon problem.
 [x,xlow,xupp,xmul,xstate,Flow,Fupp,Fmul,Fstate] = hexagon;
-snset ('Maximize');
+
+options.maximize = '';
 
 [x,F,INFO,~,~,~,~,output] = snopt(x,xlow,xupp,xmul,xstate,...
-		   Flow,Fupp,Fmul,Fstate,@snoptuserfun);
+				  Flow,Fupp,Fmul,Fstate,@snoptuserfun);
 
 itns   =  output.iterations;
 majors =  output.majors;
-
-snprint off; % Closes the file and empties the print buffer
-snend;
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

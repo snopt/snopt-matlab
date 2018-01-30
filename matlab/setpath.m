@@ -1,5 +1,6 @@
 function setpath(varargin)
 
+addpath([pwd,'/util'           ], '-end');
 addpath([pwd,'/examples'       ], '-end');
 addpath([pwd,'/examples/t1diet'], '-end');
 addpath([pwd,'/examples/sntoy' ], '-end');

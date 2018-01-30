@@ -1,10 +1,9 @@
 function t1diet_lp()
 
-sqscreen on;
-sqprint('t1dietLP.out');
+options.screen = 'on';
+options.printfile = 't1dietLP.out';
+options.specsfile = which('t1diet.spc');
 
-t1diet.spc = which('t1diet.spc');
-sqspec(t1diet.spc);
 
 % Linear objective term
 c = [3   24   13    9   20   19];
@@ -31,8 +30,8 @@ alow = [ 2000;
 aupp =  Inf*ones(3,1);
 
 options.name = 't1dietlp';
-[x,obj,INFO,output,lambda,states] = lpopt(c, x0, xlow, xupp, ...
-					  A, alow, aupp, options)
 
-sqscreen off;
-sqend;
+[x,obj,INFO,output,lambda,states] = lpopt(c, x0, xlow, xupp, ...
+					  A, alow, aupp, options);
+states
+lambda

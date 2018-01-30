@@ -9,23 +9,21 @@ function [x,F,xmul,Fmul,INFO] = hs13()
 %
 %
 
-snprint('hs13.out');  % By default, screen output is off;
-hs13.spc = which('hs13.spc');
-snspec (hs13.spc);
-snseti ('Major Iteration limit', 250);
+options.name = 'hs13';
+options.screen = 'on';
+
+options.printfile = 'hs13.out';  % By default, screen output is off;
+options.specsfile = which('hs13.spc');
 
 [x,xlow,xupp,xmul,xstate, ...
    Flow,Fupp,Fmul,Fstate, ...
  ObjAdd,ObjRow, ...
- A,iAfun,jAvar,iGfun,jGvar] = hs13data;
+ A.val,A.row,A.col,G.row,G.col] = hs13data;
 
-[x,F,INFO]= snopt( x, xlow, xupp, xmul, xstate, ...
-		   Flow, Fupp, Fmul, Fstate, ...
-		   'hs13userfun', ObjAdd, ObjRow, ...
-		   A, iAfun, jAvar, iGfun, jGvar );
-
-snprint off;
-snend;
+[x,F,INFO]= snopt(x, xlow, xupp, xmul, xstate, ...
+		  Flow, Fupp, Fmul, Fstate, ...
+		  'hs13userfun', ObjAdd, ObjRow, ...
+		  A, G, options);
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -3,27 +3,24 @@
 % Defines the NLP problem and calls the mex interface for snopt.
 % Some, but not all first derivatives are provided.
 
-snoptmain3.spc = which('snoptmain3.spc');
+options.name = 'snmain3';
 
-snprint  ( 'snoptmain3.out' );
-snsummary( 'snoptmain3.sum' );
-snspec   (  snoptmain3.spc  );
-snseti   ( 'Verify level     ', 3);
-snseti   ( 'Derivative option', 0);
+options.screen = 'on';
+options.specsfile = which('snoptmain3.spc');
+options.printfile = 'snoptmain3.out';
+
+options.verify_level = 3;
+options.derivative_option = 0;
 
 % Get the data defining the Hexagon problem.
 [x,xlow,xupp,xmul,xstate, ...
  Flow,Fupp,Fmul,Fstate, ...
- A,iAfun,jAvar,iGfun,jGvar] = hexagon;
+ A.val,A.row,A.col,G.row,G.col] = hexagon;
 
 [x,F,INFO] = snopt(x,xlow,xupp,xmul,xstate, ...
 		   Flow,Fupp,Fmul,Fstate, ...
 		   @snoptuserfun3, ...
-		   A, iAfun, jAvar, iGfun, jGvar);
-
-snsummary off;
-snprint   off; % Closes the file and empties the print buffer
-snend;
+		   A, G, options);
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -1,4 +1,4 @@
-function [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt(x, xlow, xupp, xmul, xstate,...
+function [x,F,info,xmul,Fmul,xstate,Fstate,output] = snopt(x, xlow, xupp, xmul, xstate,...
 						  Flow, Fupp, Fmul, Fstate,...
 						  userfun, varargin);
 % This function solves the nonlinear optimization problem:
@@ -9,38 +9,35 @@ function [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt(x, xlow, xupp, xmul
 %            Flow <= F <= Fupp
 % where:
 %  x        is the column vector of initial values of the unknowns.
+%
 %  F        is a vector of objective and constraint functions specified
 %           in the m-file userfun.
+%
 %  ObjRow   is the objective row of F (default ObjRow = 1).
+%
 %  userfun  is the handle for a Matlab funcion that defines the elements of F
 %           and optionally, their derivatives.
 %
 % Additional arguments allow the specification of more detailed problem information.
 %
 % Calling sequence 1:
-%  [...] = snopt (x, xlow, xupp, xmul, xstate,
-%                  Flow, Fupp, Fmul, Fstate, userfun,
-%                  [options])
+%  [...] = snopt(x, xlow, xupp, xmul, xstate,
+%                     Flow, Fupp, Fmul, Fstate, userfun,
+%                     [options])
 %
 % Calling sequence 2:
-%  [...] = snopt (x, xlow, xupp, xmul, xstate,...
-%                  Flow, Fupp, Fmul, Fstate, userfun,...
-%                  ObjAdd, ObjRow, [options])
+%  [...] = snopt(x, xlow, xupp, xmul, xstate,...
+%                     Flow, Fupp, Fmul, Fstate, userfun,...
+%                     ObjAdd, ObjRow, [options])
 %
 % Calling sequence 3:
-%  [...] = snopt (x, xlow, xupp, xmul, xstate,...
-%                  Flow, Fupp, Fmul, Fstate, userfun,...
-%                  A, iAfun, jAvar, iGfun,
-%                  jGvar, [options])
-% Calling sequence 4:
-%  [...] = snopt (x, xlow, xupp, xmul, xstate,...
-%                  Flow, Fupp, Fmul, Fstate, userfun,...
-%                  ObjAdd, ObjRow,
-%                  A, iAfun, jAvar, iGfun,
-%                  jGvar, [options])
+%  [...] = snopt(x, xlow, xupp, xmul, xstate,...
+%                     Flow, Fupp, Fmul, Fstate, userfun,...
+%                     ObjAdd, ObjRow,
+%                     A, G, [options])
 %
 % Output from snopt:
-%  [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt(...)
+%  [x,F,info,xmul,Fmul,xstate,Fstate,output] = snopt(...)
 %
 %
 % INPUT:
@@ -80,9 +77,8 @@ function [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt(x, xlow, xupp, xmul
 %                The user maybe define, all, some, or none of the
 %                entries of G.  If the user does NOT intend to
 %                supply ALL nonzero entries of G, it is imperative
-%                that the proper derivative level is set prior to
-%                a call to snopt():
-%                     >> snseti("Derivative option",k);
+%                that the proper derivative level is set
+%                     >> option.derivative_option = k;
 %                where k = 0 or 1.  Meaning:
 %                    1 -- Default.  All derivatives are provided.
 %                    0 -- Some derivatives are not provided.
@@ -101,52 +97,98 @@ function [x,F,inform,xmul,Fmul,xstate,Fstate,output] = snopt(x, xlow, xupp, xmul
 % ObjRow         indicates which row of F acts as the objective function.
 %                If not specified, the default is 1.
 %
-% A,iAfun,jAvar  hold the constant elements in the Jacobian of F in
-%                coordinate form.
-%                If i = iAfun(k) and j = jAvar(k), then A(k) is the (i,j)-th
+% A              is either a struct type or a matrix (dense or sparse)
+%                that defines the constant elements in the Jacobian of F.
+%
+%                If A is a struct, the structure is provided in
+%                coordinate form with fields:
+%                   A.row
+%                   A.col
+%                   A.val
+%                If i = A.row(k) and j = A.col(k), then A.val(k) is the (i,j)-th
 %                element in A.
 %
-% iGfun, jGvar   hold the indices of the nonlinear elements in the Jacobian
-%                of F.
+% G              is a struct type or a matrix (dense or sparse) defining
+%                the nonlinear elements in the Jacobian of F.
+%
+%                If G is a struct, the Jacobian structure is provided in
+%                coordinate form with fields:
+%                   G.row
+%                   G.col
+%                If G is a matrix, then nonzero elements in the matrix
+%                denote the nonzero elements of the nonlinear elements of
+%                the Jacobian.
 %
 %            More IMPORTANT details:
-%         1) The indices (iAfun,jAvar) must be DISJOINT from (iGfun,jGvar).
-%            A nonzero element in F' must be either an element of G or an
-%            element of A, but not the sum of the two.
+%            1) The indices (A.row,A.col) must be DISJOINT from (G.row,G.col).
+%               A nonzero element in F' must be either an element of G or an
+%               element of A, but not the sum of the two.
 %
-%         2) If the user does not wish to provide iAfun, jAvar, iGfun,
-%            jGvar, then snopt() will determine them by calling snJac().
+%            2) If the user does not wish to provide A.row, A.col, G.row,
+%               G.col, then snopt() will determine them by calling snJac().
 %
-%            WARNING: In this case, the derivative level will be set to zero
-%            if constant elements exist.  This is because the linear
-%            elements have not yet been deleted from the definition of
-%            userfun.  Furthermore, if G is given in vector form, the
-%            ordering of G may not necessarily correspond to (iGfun,jGvar)
-%            computed by snJac().
+%               WARNING: In this case, the derivative level will be set to zero
+%               if constant elements exist.  This is because the linear
+%               elements have not yet been deleted from the definition of
+%               userfun.  Furthermore, if G is given in vector form, the
+%               ordering of G may not necessarily correspond to (iGfun,jGvar)
+%               computed by snJac().
 %
-% options        is a struct.
-%                options.name   is the problem name
-%                options.stop   is the "snSTOP" function called at every
-%                               major iteration.
-%                options.start  'Cold', 'Warm'
+% options       is an (optional) input argument of type struct.  SNOPT
+%               options can be set using this structure by creating an entry with a
+%               field name equal to the SNOPT keyword with spaces replaced by
+%               underscores '_'.  For example,
+%                      options.iterations_limit = 250;
 %
+%               Additional keywords include:
 %
-solveopt = 1;
-
-probName   = '';
+%               options.name        is the problem name
+%
+%               options.start       'Cold', 'Warm'
+%
+%               options.screen      is a string set to 'on' or 'off'.
+%                                   Summary to the screen is controlled
+%                                   by this option. (default 'on')
+%
+%               options.printfile   is a string denoting the print file.
+%                                   By default, no print file is created.
+%                                   Not setting this option or setting it to
+%                                   '' turns off print output.
+%
+%               options.specsfile   is a string denoting the options
+%                                   filename.
+%
+%               options.stop        is the "snSTOP" function called at every
+%                                   major iteration.
+%
+%               options.iwork       is an integer defining the integer
+%                                   SNOPT workspace length.
+%
+%               options.rwork       is an integer defining the real
+%                                   SNOPT workspace length.
+%
+name       = '';
 istart     = 0;
+
+printfile  = '';
+screen     = 'on';
+specsfile  = '';
+
+iwork      = 0;
+rwork      = 0;
+
 stopFun    = 0;
 optionsLoc = 0;
 
 % Deal with options first.
-if nargin == 11 || nargin == 13 || nargin == 16 || nargin == 18,
+if nargin == 11 || nargin == 13 || nargin == 15,
   optionsLoc = nargin - 10;
   if isstruct(varargin{optionsLoc}),
     options = varargin{optionsLoc};
 
     % Name
     if isfield(options,'name'),
-      probName = options.name;
+      name = options.name;
     end
 
     % Start
@@ -155,6 +197,27 @@ if nargin == 11 || nargin == 13 || nargin == 16 || nargin == 18,
 	istart = 1;
       elseif strcmp(lower(options.start),'hot'),
 	istart = 2;
+      end
+    end
+
+    % Print output
+    if isfield(options,'printfile'),
+      if ischar(options.printfile),
+	printfile = options.printfile;
+      end
+    end
+
+    % Specs file
+    if isfield(options,'specsfile'),
+      if ischar(options.specsfile),
+	specsfile = options.specsfile;
+      end
+    end
+
+    % Screen
+    if isfield(options,'screen'),
+      if ischar(options.screen),
+	screen = options.screen;
       end
     end
 
@@ -168,8 +231,74 @@ if nargin == 11 || nargin == 13 || nargin == 16 || nargin == 18,
 	error('SNOPT:InputArgs','options.stop should be a string or function handle');
       end
     end
+
+    % iwork
+    if isfield(options,'iwork'),
+      if ischar(options.iwork),
+	iwork = options.iwork;
+      end
+    end
+
+    % rwork
+    if isfield(options,'rwork'),
+      if ischar(options.rwork),
+	rwork = options.rwork;
+      end
+    end
+
   else
     optionsLoc = 0;
+  end
+end
+
+% Set print, screen, workspace FIRST.
+snprint(printfile);
+snscreen(screen);
+snsetwork(iwork,rwork);
+
+
+% Read specsfile
+if ~strcmp(specsfile,''),
+  mexopt = 9;
+  info = snspec(specsfile);
+
+  if info ~= 101 && info ~= 107,
+    x = []; xmul = []; xstate = [];
+    F = []; Fmul = []; Fstate = [];
+    output = [];
+
+    end_snopt();
+    return;
+  end
+end
+
+
+% Handle other options
+if (optionsLoc ~= 0),
+  fields = fieldnames(options);
+  for i = 1:numel(fields),
+    if (ischar(fields{i})),
+      keyword = strrep(fields{i}, '_', ' ');
+
+      if ~strcmp(keyword,'screen') && ...
+	    ~strcmp(keyword,'printfile') && ...
+	    ~strcmp(keyword,'specsfile') && ...
+	    ~strcmp(keyword,'name') && ...
+	    ~strcmp(keyword,'iwork') && ...
+	    ~strcmp(keyword,'rwork') && ...
+	    ~strcmp(keyword,'stop') && ...
+	    ~strcmp(keyword,'start'),
+
+	option = options.(fields{i});
+
+	if (isnumeric(option)),
+	  option = num2str(option);
+	end
+	string = strjoin({keyword, option});
+
+	snset(string);
+      end
+    end
   end
 end
 
@@ -191,13 +320,15 @@ catch
 end
 
 
-ObjAdd = 0;
-ObjRow = 1;
+ObjAdd  = 0;
+ObjRow  = 1;
+
+callJac = 0;
 
 if nargin == 10 || nargin == 11,
-  %  snopt (x, xlow, xupp, xmul, xstate,
-  %             Flow, Fupp, Fmul, Fstate, userfun,
-  %             [options])
+  %  snopt(x, xlow, xupp, xmul, xstate,
+  %           Flow, Fupp, Fmul, Fstate, userfun,
+  %           [options])
   % User is not providing derivative structures.
 
   warning('SNOPT:Input','User is not providing SNOPT derivatives structures');
@@ -206,22 +337,21 @@ if nargin == 10 || nargin == 11,
   nF = length(F0);
   n  = length(x);
 
+  callJac = 1;
   if ~gotDeriv,
     % User is also not providing derivatives.
     % Call snJac to estimate the pattern of nonzeros for the Jacobian.
     warning('SNOPT:Input','Derivative structures estimated via snJac');
-    [A,iAfun,jAvar,iGfun,jGvar] = snJac(userFG,x,xlow,xupp,nF);
   else
     % User IS providing derivatives via userfun.
     warning('SNOPT:Input',['Derivatives provided but not structures: estimating' ...
 		    ' structure via snJac.']);
-    [A,iAfun,jAvar,iGfun,jGvar] = snJac(userFG,x,xlow,xupp,nF);
   end
 
 elseif nargin == 12 || nargin == 13,
-  % snopt (x, xlow, xupp, xmul, xstate,...
-  %            Flow, Fupp, Fmul, Fstate, userfun,...
-  %         ObjAdd, ObjRow, [options])
+  % snopt(x, xlow, xupp, xmul, xstate,...
+  %          Flow, Fupp, Fmul, Fstate, userfun,...
+  %       ObjAdd, ObjRow, [options])
   % User is not providing derivative structures.
 
   warning('SNOPT:Input','User is not providing SNOPT derivatives structures');
@@ -230,81 +360,85 @@ elseif nargin == 12 || nargin == 13,
   nF = length(F0);
   n  = length(x);
 
+  callJac = 1;
   if ~gotDeriv,
     % Call snJac to estimate the pattern of nonzeros for the Jacobian.
     warning('SNOPT:Input','Derivative structures estimated via snJac');
-    [A,iAfun,jAvar,iGfun,jGvar] = snJac(userFG,x,xlow,xupp,nF);
   else
     % User IS providing derivatives via userfun.
     warning('SNOPT:Input',['Derivatives provided but not structures: estimating' ...
 		    ' structure via snJac.']);
-    [A,iAfun,jAvar,iGfun,jGvar] = snJac(userFG,x,xlow,xupp,nF);
   end
 
   ObjAdd = varargin{1};
   ObjRow = varargin{2};
 
-elseif nargin == 15 || nargin == 16,
-  %  snopt (x, xlow, xupp, xmul, xstate,...
-  %             Flow, Fupp, Fmul, Fstate, userfun,...
-  %          A, iAfun, jAvar, iGfun, jGvar, [options])
-  % The user is providing derivatives.
-
-  A      = varargin{1};
-  iAfun  = varargin{2};
-  jAvar  = varargin{3};
-  iGfun  = varargin{4};
-  jGvar  = varargin{5};
-
-elseif nargin == 17 || nargin == 18,
-  % snopt (x, xlow, xupp, xmul, xstate,...
-  %            Flow, Fupp, Fmul, Fstate, userfun,...
-  %         ObjAdd, ObjRow,
-  %         A, iAfun, jAvar, iGfun, jGvar, [options])
+elseif nargin == 14 || nargin == 15,
+  % snopt(x, xlow, xupp, xmul, xstate,...
+  %          Flow, Fupp, Fmul, Fstate, userfun,...
+  %       ObjAdd, ObjRow,
+  %       A, G, [options])
   % The user is providing derivatives.
 
   ObjAdd = varargin{1};
   ObjRow = varargin{2};
   A      = varargin{3};
-  iAfun  = varargin{4};
-  jAvar  = varargin{5};
-  iGfun  = varargin{6};
-  jGvar  = varargin{7};
+  G      = varargin{4};
+
+  if isstruct(A),
+    if isfield(A,'row') && isfield(A,'col') && isfield(A,'val'),
+      % In coordinate form
+      iAfun = colvec(A.row,'A.row',1,0);
+      jAvar = colvec(A.col,'A.col',1,0);
+      valA  = colvec(A.val,'A.val',1,0);
+    else
+      error('SNOPT:InputArgs','Matrix must have row, col and val fields')
+    end
+
+  elseif isnumeric(A),
+    % Dense or sparse
+    [iAfun,jAvar,valA] = find(A);
+  else
+    error('SNOPT:InputArgs','Wrong input type for A')
+  end
+
+  if isstruct(G),
+    % In coordinate form
+    if isfield(G,'row') && isfield(G,'col'),
+      % In coordinate form
+      iGfun = colvec(G.row,'G.row',1,0);
+      jGvar = colvec(G.col,'G.col',1,0);
+    else
+      error('SNOPT:InputArgs','Matrix must have row and col fields')
+    end
+
+  elseif isnumeric(G),
+    % Dense or sparse
+    [iGfun,jGvar] = find(G);
+  else
+    error('SNOPT:InputArgs','Wrong input type for G')
+  end
 
 else
   error('SNOPT:InputArgs','Wrong number of input arguments for SNOPT')
 end
 
-A     = colvec(A,'A',1,0);
-iAfun = colvec(iAfun,'iAfun',1,0);
-jAvar = colvec(jAvar,'jAvar',1,0);
-if length(A) ~= length(iAfun) || ...
-      length(A) ~= length(jAvar) || ...
-      length(iAfun) ~= length(jAvar),
-  error('SNOPT:InputArgs','A, iAfun, jAvar must have the same length.');
+% Call snJac
+if callJac > 0,
+  [valA,iAfun,jAvar,iGfun,jGvar] = snjac(userFG,x,xlow,xupp,nF);
 end
 
-iGfun = colvec(iGfun,'iGfun',1,0);
-jGvar = colvec(jGvar,'jGvar',1,0);
-if length(iGfun) ~= length(jGvar),
-  error('SNOPT:InputArgs','iGfun and jGvar must have the same length.');
-end
-
-[x,F,inform,xmul,Fmul, ...
- xstate,Fstate,itn,mjritn] = snoptmex(solveopt, ...
-				      istart, stopFun, probName, ...
-				      @(x,needF,needG)snfun(x,needF,needG,...
+[x,F,info,xmul,Fmul, ...
+ xstate,Fstate,output] = solve_snopt(istart, stopFun, name, ...
+				     @(x,needF,needG)snfun(x,needF,needG,...
 						  userFG,gotDeriv,iGfun,jGvar), ...
-				      x, ...
-				      xlow, xupp, xmul, xstate, ...
-				      Flow, Fupp, Fmul, Fstate, ...
-				      ObjAdd, ObjRow, ...
-				      A, iAfun, jAvar, ...
-				      iGfun, jGvar);
-
-output.info       = inform;
-output.iterations = itn;
-output.majors     = mjritn;
+				     x, ...
+				     xlow, xupp, xmul, xstate, ...
+				     Flow, Fupp, Fmul, Fstate, ...
+				     ObjAdd, ObjRow, ...
+				     valA, iAfun, jAvar, ...
+				     iGfun, jGvar);
+end_snopt();
 
 
 function [F,G] = snfun(x,needF,needG,userfun,gotDeriv,iGfun,jGvar)

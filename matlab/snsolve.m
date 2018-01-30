@@ -1,5 +1,5 @@
-function [x,fval,exitflag,output,lambda,states] = snsolve(obj,x0,A,b,varargin)
-% function [x,fval,exitflag,output,lambda,states] = snsolve(obj,x0,A,b,varargin)
+function [x,fval,info,output,lambda,states] = snsolve(obj,x0,A,b,varargin)
+% function [x,fval,info,output,lambda,states] = snsolve(obj,x0,A,b,varargin)
 %
 %   [...] = snsolve(obj,x0,A,b)
 %   [...] = snsolve(obj,x0,A,b,options)
@@ -18,7 +18,7 @@ function [x,fval,exitflag,output,lambda,states] = snsolve(obj,x0,A,b,varargin)
 %
 %
 % Output from snsolve:
-%   [x,fval,exitflag,output,lambda,states] = snsolve(...)
+%   [x,fval,info,output,lambda,states] = snsolve(...)
 %
 %
 % snsolve and fmincon assume problems are of the form:
@@ -30,21 +30,48 @@ function [x,fval,exitflag,output,lambda,states] = snsolve(obj,x0,A,b,varargin)
 %                xlow   <= x <= xupp.
 %
 % Input:
-%   options      is a struct.
-%                options.name   is the problem name
-%                options.stop   is the "snSTOP" function called at every
-%                               major iteration.
-%                options.start  'Cold', 'Warm'
+% options       is an (optional) input argument of type struct.  SNOPT
+%               options can be set using this structure by creating an entry with a
+%               field name equal to the SNOPT keyword with spaces replaced by
+%               underscores '_'.  For example,
+%                      options.iterations_limit = 250;
+%
+%               Additional keywords include:
+%
+%               options.name        is the problem name
+%
+%               options.start       'Cold', 'Warm'
+%
+%               options.screen      is a string set to 'on' or 'off'.
+%                                   Summary to the screen is controlled
+%                                   by this option. (default 'on')
+%
+%               options.printfile   is a string denoting the print file.
+%                                   By default, no print file is created.
+%                                   Not setting this option or setting it to
+%                                   '' turns off print output.
+%
+%               options.specsfile   is a string denoting the options
+%                                   filename.
+%
+%               options.stop        is the "snSTOP" function called at every
+%                                   major iteration.
+%
+%               options.iwork       is an integer defining the integer
+%                                   SNOPT workspace length.
+%
+%               options.rwork       is an integer defining the real
+%                                   SNOPT workspace length.
 %
 % Output:
 %   x            solution
 %
 %   fval         final objective value at x
 %
-%   exitflag     exit condition from SNOPT
+%   info         exit condition from SNOPT
 %
 %   output       is a struct with the following fields
-%                output.info        exit code from SNOPT (same as exitflag)
+%                output.info        exit code from SNOPT (same as info)
 %                output.iterations  the total number of minor iterations
 %                output.majors      the total number of major iterations
 %
@@ -63,10 +90,17 @@ function [x,fval,exitflag,output,lambda,states] = snsolve(obj,x0,A,b,varargin)
 %                states.eqlin        linear equalities
 %
 %
-solveopt = 1;
 
-probName   = '';
+name       = '';
 istart     = 0;
+
+printfile  = '';
+screen     = 'on';
+specsfile  = '';
+
+iwork      = 0;
+rwork      = 0;
+
 stopFun    = 0;
 optionsLoc = 0;
 
@@ -80,7 +114,7 @@ if nargin == 5 || nargin == 7 || nargin == 9 || ...
 
     % Name
     if isfield(options,'name'),
-      probName = options.name;
+      name = options.name;
     end
 
     % Start
@@ -89,6 +123,27 @@ if nargin == 5 || nargin == 7 || nargin == 9 || ...
 	istart = 1;
       elseif strcmp(lower(options.start),'hot'),
 	istart = 2;
+      end
+    end
+
+    % Print output
+    if isfield(options,'printfile'),
+      if ischar(options.printfile),
+	printfile = options.printfile;
+      end
+    end
+
+    % Specs file
+    if isfield(options,'specsfile'),
+      if ischar(options.specsfile),
+	specsfile = options.specsfile;
+      end
+    end
+
+    % Screen
+    if isfield(options,'screen'),
+      if ischar(options.screen),
+	screen = options.screen;
       end
     end
 
@@ -103,8 +158,73 @@ if nargin == 5 || nargin == 7 || nargin == 9 || ...
       end
     end
 
+    % iwork
+    if isfield(options,'iwork'),
+      if ischar(options.iwork),
+	iwork = options.iwork;
+      end
+    end
+
+    % rwork
+    if isfield(options,'rwork'),
+      if ischar(options.rwork),
+	rwork = options.rwork;
+      end
+    end
+
   else
     optionsLoc = 0;
+  end
+end
+
+% Set print, screen, workspace FIRST.
+snprint(printfile);
+snscreen(screen);
+snsetwork(iwork,rwork);
+
+
+% Read specsfile
+if ~strcmp(specsfile,''),
+  mexopt = 9;
+  info = snspec(specsfile);
+
+  if info ~= 101 && info ~= 107,
+    x = []; xmul = []; xstate = [];
+    F = []; Fmul = []; Fstate = [];
+    output = [];
+
+    end_snopt();
+    return;
+  end
+end
+
+
+% Handle other options
+if (optionsLoc ~= 0),
+  fields = fieldnames(options);
+  for i = 1:numel(fields),
+    if (ischar(fields{i})),
+      keyword = strrep(fields{i}, '_', ' ');
+
+      if ~strcmp(keyword,'screen') && ...
+	    ~strcmp(keyword,'printfile') && ...
+	    ~strcmp(keyword,'specsfile') && ...
+	    ~strcmp(keyword,'name') && ...
+	    ~strcmp(keyword,'iwork') && ...
+	    ~strcmp(keyword,'rwork') && ...
+	    ~strcmp(keyword,'stop') && ...
+	    ~strcmp(keyword,'start'),
+
+	option = options.(fields{i});
+
+	if (isnumeric(option)),
+	  option = num2str(option);
+	end
+	string = strjoin({keyword, option});
+
+	snset(string);
+      end
+    end
   end
 end
 
@@ -270,74 +390,31 @@ Fupp    = [  inf;
 	     b;
 	     beq ];
 
-
 if isa(nonlcon,'function_handle'),
-  [x,F,exitflag,xmul,Fmul,xstate,Fstate,itn,mjritn] = ...
-      snoptmex(solveopt, ...
-	       istart, stopFun, probName, ...
-	       @(x,needF,needG)snfun(x,needF,needG,myobj,gotGrad, ...
-				     nonlcon,gotDeriv,iGfun,jGvar), ...
-	       x0, ...
-	       xlow, xupp, xmul, xstate, ...
-	       Flow, Fupp, Fmul, Fstate, ...
-	       ObjAdd, ObjRow, ...
-	       Aij, iAfun, jAvar, iGfun, jGvar);
+  [x,fval,info,output,lambda,states] = ...
+      solve_snfmincon(istart, stopFun, name, ...
+		      @(x,needF,needG)snfun(x,needF,needG,myobj,gotGrad, ...
+					    nonlcon,gotDeriv,iGfun,jGvar), ...
+		      x0, ...
+		      xlow, xupp, xmul, xstate, ...
+		      Flow, Fupp, Fmul, Fstate, ...
+		      ObjAdd, ObjRow, ...
+		      Aij, iAfun, jAvar, iGfun, jGvar, ...
+		      n, nonlin_ineq, nonlin_eq, linear_ineq, linear_eq);
 else
-  [x,F,exitflag,xmul,Fmul,xstate,Fstate,itn,mjritn] = ...
-      snoptmex(solveopt, ...
-	       istart, stopFun, probName, ...
-	       @(x,needF,needG)snfun(x,needF,needG,myobj,gotGrad), ...
-	       x0, ...
-	       xlow, xupp, xmul, xstate, ...
-	       Flow, Fupp, Fmul, Fstate, ...
-	       ObjAdd, ObjRow, ...
-	       Aij, iAfun, jAvar, iGfun, jGvar);
+  [x,fval,info,output,lambda,states] = ...
+      solve_snfmincon(istart, stopFun, name, ...
+		      @(x,needF,needG)snfun(x,needF,needG,myobj,gotGrad), ...
+		      x0, ...
+		      xlow, xupp, xmul, xstate, ...
+		      Flow, Fupp, Fmul, Fstate, ...
+		      ObjAdd, ObjRow, ...
+		      Aij, iAfun, jAvar, iGfun, jGvar, ...
+  		      n, nonlin_ineq, nonlin_eq, linear_ineq, linear_eq);
 end
 
-fval              = F(1);
-zero              = zeros(n,1);
-states.x          = xstate(1:n);
-lambda.x          = xmul(1:n);
-
-if nonlin_ineq > 0,
-  i1 = 1+1; i2 = i1-1 + nonlin_ineq;
-  lambda.ineqnonlin = Fmul(i1:i2);
-  states.ineqnonlin = Fstate(i1:i2);
-else
-  lambda.ineqnonlin = [];
-  states.ineqnonlin = [];
-end
-
-if nonlin_eq > 0,
-  i1 = 1+nonlin_ineq; i2 = i1-1 + nonlin_eq;
-  lambda.eqnonlin = Fmul(i1:i2);
-  states.eqnonlin = Fmul(i1:i2);
-else
-  lambda.eqnonlin = [];
-  states.eqnonlin = [];
-end
-
-if linear_ineq > 0,
-  i1 = 1+nonlin_ineq+nonlin_eq; i2 = i1-1 + linear_ineq;
-  lambda.ineqlin = Fmul(i1:i2);
-  states.ineqlin = Fmul(i1:i2);
-else
-  lambda.ineqlin = [];
-  states.ineqlin = [];
-end
-
-if linear_eq > 0,
-  i1 = 1+nonlin_ineq+nonlin_eq+linear_ineq; i2 = i1-1 + linear_eq;
-  lambda.eqlin = Fmul(i1:i2);
-  states.eqlin = Fmul(i1:i2);
-else
-  lambda.eqlin = [];
-  states.eqlin = [];
-end
-
-output.info       = exitflag;
-output.iterations = itn;
-output.majors     = mjritn;
+% End
+end_snopt();
 
 
 

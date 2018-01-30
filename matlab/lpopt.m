@@ -41,9 +41,35 @@ function [x,obj,info,output,lambda,states] = lpopt(c, x0, xl, xu, A, al, au, var
 %
 %  al, au   are the upper and lower bounds on the linear constraints A*x
 %
-%  options  is a struct.
-%           options.name   is the problem name
-%           options.start  'Cold', 'Warm'
+%  options  is an (optional) input argument of type struct.  SNOPT
+%           options can be set using this structure by creating an entry with a
+%           field name equal to the SNOPT keyword with spaces replaced by
+%           underscores '_'.  For example,
+%              options.iterations_limit = 250;
+%
+%           Additional keywords include:
+%
+%               options.name        is the problem name
+%
+%               options.start       'Cold', 'Warm'
+%
+%               options.screen      is a string set to 'on' or 'off'.
+%                                   Summary to the screen is controlled
+%                                   by this option. (default 'on')
+%
+%               options.printfile   is a string denoting the print file.
+%                                   By default, no print file is created.
+%                                   Not setting this option or setting it to
+%                                   '' turns off print output.
+%
+%               options.specsfile   is a string denoting the options
+%                                   filename.
+%
+%               options.iwork       is an integer defining the integer
+%                                   SNOPT workspace length.
+%
+%               options.rwork       is an integer defining the real
+%                                   SNOPT workspace length.
 %
 % OUTPUT:
 %  x        is the final point
@@ -65,10 +91,15 @@ function [x,obj,info,output,lambda,states] = lpopt(c, x0, xl, xu, A, al, au, var
 %           states.linear     are for the linear constraints
 %
 
-solveOpt = 1;
+name       = '';
+start      = 'Cold';
 
-probName = '';
-start    = 'Cold';
+printfile  = '';
+screen     = 'on';
+specsfile  = '';
+
+iwork      = 0;
+rwork      = 0;
 
 % Deal with options.
 optionsLoc = 0;
@@ -78,18 +109,99 @@ if nargin == 8 || nargin == 10,
     options = varargin{optionsLoc};
     % Name
     if isfield(options,'name'),
-      probName = options.name;
+      name = options.name;
     end
 
     % Start
     if isfield(options,'start'),
       start = options.start;
     end
+
+    % Print output
+    if isfield(options,'printfile'),
+      if ischar(options.printfile),
+	printfile = options.printfile;
+      end
+    end
+
+    % Specs file
+    if isfield(options,'specsfile'),
+      if ischar(options.specsfile),
+	specsfile = options.specsfile;
+      end
+    end
+
+    % Screen
+    if isfield(options,'screen'),
+      if ischar(options.screen),
+	screen = options.screen;
+      end
+    end
+
+    % iwork
+    if isfield(options,'iwork'),
+      if ischar(options.iwork),
+	iwork = options.iwork;
+      end
+    end
+
+    % rwork
+    if isfield(options,'rwork'),
+      if ischar(options.rwork),
+	rwork = options.rwork;
+      end
+    end
+
   else
     optionsLoc = 0;
   end
 end
 
+
+% Set print, screen, workspace FIRST.
+sqprint(printfile);
+sqscreen(screen);
+sqsetwork(iwork,rwork);
+
+
+% Read specsfile
+if ~strcmp(specsfile,''),
+  info = sqspec(specsfile);
+
+  if info ~= 101 && info ~= 107,
+    x = []; obj = 0; output = []; lambda = []; states = [];
+    end_lpopt();
+    return;
+  end
+end
+
+% Handle other options
+if (optionsLoc ~= 0),
+  fields = fieldnames(options);
+  for i = 1:numel(fields),
+    if (ischar(fields{i})),
+      keyword = strrep(fields{i}, '_', ' ');
+
+      if ~strcmp(keyword,'screen') && ...
+	    ~strcmp(keyword,'printfile') && ...
+	    ~strcmp(keyword,'specsfile') && ...
+	    ~strcmp(keyword,'name') && ...
+	    ~strcmp(keyword,'iwork') && ...
+	    ~strcmp(keyword,'rwork') && ...
+	    ~strcmp(keyword,'start'),
+
+	option = options.(fields{i});
+
+	if (isnumeric(option)),
+	  option = num2str(option);
+	end
+	string = strjoin({keyword, option});
+
+	sqset(string);
+      end
+    end
+  end
+end
 
 if nargin == 7 || nargin == 8,
   % lpopt(c, x0, xl, xu, A, al, au)
@@ -164,7 +276,6 @@ else
   end
 end
 
-
 x0  = colvec(x0,'x0',1,n);
 xl  = colvec(xl,'xl',1,n);
 xu  = colvec(xu,'xu',1,n);
@@ -172,21 +283,11 @@ al  = colvec(al,'al',1,m);
 au  = colvec(au,'au',1,m);
 c   = colvec(c,'c',1,0);
 
-userHx = 0;
-[x,obj,info,itn,y,state] = sqoptmex(solveOpt, start, probName, ...
-				    m, n, userHx, c, ...
-				    x0, xl, xu, xstate, xmul, ...
-				    neA, indA, locA, valA, al, au, astate, amul);
 
-% Set output
-output.iterations = itn;
-output.info       = info;
+[x,obj,info,output,lambda,states] = solve_lpopt(start, name, ...
+						m, n, c, ...
+						x0, xl, xu, xstate, xmul, ...
+						neA, indA, locA, valA, al, au, astate, amul);
 
-zero     = zeros(n,1);
-states.x = state(1:n);
-lambda.x = y(1:n);
 
-if m > 0,
-  states.linear = state(n+1:n+m);
-  lambda.linear = y(n+1:n+m);
-end
+end_lpopt();

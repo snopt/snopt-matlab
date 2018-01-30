@@ -1,24 +1,19 @@
 function [x,F,xmul,Fmul,INFO] = hs116M()
 % HS Problem 116 with explicit linear constraints.
 
-snprint('hs116M.out');
-
-hs116.spc = which('hs116M.spc');
-snspec (hs116.spc);
-
-snseti('Major Iteration limit', 250);
+options.printfile = 'hs116M.out';
+options.specsfile = which('hs116M.spc');
+options.screen = 'on';
+options.name = 'hs116M';
 
 [x,xlow,xupp,xmul,xstate, ...
    Flow,Fupp,Fmul,Fstate, ...
- ObjAdd,ObjRow,A,iAfun,jAvar,iGfun,jGvar] = hs116data;
+ ObjAdd,ObjRow,A.val,A.row,A.col,G.row,G.col] = hs116data;
 
-[x,F,INFO,xmul,Fmul]= snopt( x, xlow, xupp, xmul, xstate,  ...
-                             Flow, Fupp, Fmul, Fstate,     ...
-                             @hs116userfunM, ObjAdd, ObjRow, ...
-                             A, iAfun, jAvar, iGfun, jGvar );
-
-snprint off; % Closes the file and empties the print buffer
-snend;
+[x,F,INFO,xmul,Fmul]= snopt(x, xlow, xupp, xmul, xstate,  ...
+                            Flow, Fupp, Fmul, Fstate,     ...
+                            @hs116userfunM, ObjAdd, ObjRow, ...
+                            A, G);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [x,xlow,xupp,xmul,xstate, ...

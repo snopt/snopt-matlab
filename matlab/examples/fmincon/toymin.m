@@ -12,13 +12,10 @@ function [x,fval,INFO]=toymin
 %
 %
 
-snscreen on;
-snprint('toymin.out');  % By default, screen output is off;
 
-sntoy.spc = which('sntoy.spc');
-snspec (sntoy.spc);
-
-snseti ('Major Iteration limit', 250);
+options.screen = 'on';
+options.printfile = 'toymin.out';
+options.specsfile = which('sntoy.spc');
 
 x0     = ones(4,1);
 A      = [ 0 -4 -2 0];
@@ -32,11 +29,8 @@ ub     = Inf*ones(4,1);
 options.name = 'toyprob';
 options.stop = @toySTOP;
 
-[x,fval,INFO,output,lambda,states] = snsolve( @toyObj, x0, A, b, Aeq, beq, lb, ub, ...
-					      @toyCon, options);
-
-snprint off;
-snend;
+[x,fval,INFO,output,lambda,states] = snsolve(@toyObj, x0, A, b, Aeq, beq, lb, ub, ...
+					     @toyCon, options);
 
 
 

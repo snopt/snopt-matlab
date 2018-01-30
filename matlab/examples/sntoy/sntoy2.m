@@ -10,11 +10,11 @@
 %                     x(1) >= 0,                       x(4) >= 0.
 %
 
-snscreen on;
-snprint('sntoy2.out');  % By default, screen output is on;
-sntoy2.spc = which('sntoy2.spc');
-snspec (sntoy2.spc);
-snseti ('Major Iteration limit', 250);
+options.name = 'sntoy2';
+options.screen = 'on';
+
+options.printfile = 'sntoy2.out';  % By default, screen output is on;
+options.specsfile = which('sntoy2.spc');
 
 x      = ones(4,1);
 xstate = zeros(4,1);
@@ -28,9 +28,4 @@ Flow   = [-Inf,   0,   2,   4]';
 Fupp   = [ Inf, Inf,   2,   4]';
 
 [x,F,inform] = snopt(x,xlow,xupp,xmul,xstate, ...
-		     Flow,Fupp,Fmul,Fstate,@toyusrfun2);
-
-snset ('Defaults');
-snprint off;
-
-snend;
+		     Flow,Fupp,Fmul,Fstate,@toyusrfun2,options);

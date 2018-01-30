@@ -15,12 +15,10 @@ function [x,Obj,INFO] = hs76
 % Add path to SQOPT matlab files
 addpath([pwd,'/../../'], '-end');
 
-sqscreen('on');
-sqprint('hs76.out');
-
-hs76.spc = which('hs76.spc');
-sqspec(hs76.spc);
-sqseti('Major Iteration limit', 250);
+options.name = 'hs76';
+options.screen = 'on';
+options.printfile = 'hs76.out';
+options.specsfile = which('hs76.spc');
 
 
 % Set up the problem
@@ -44,22 +42,15 @@ au = [ 5; 4; -1.5 ];
 xl = zeros(n,1);
 xu = []; % No upper bounds on x
 
-% Solve the problem.
-[x,Obj,INFO,lambda,states,output] = sqopt(@hs76Hx, f, x0, xl, xu, A, al, au);
-
-
-sqprint('off');
-sqscreen('off');
-sqend;
-
-
-function Hx = hs76Hx(x)
+% Hessian
 H = [  2  0  -1  0  ;
        0  1   0  0  ;
       -1  0   2  1  ;
        0  0   1  1 ];
 
-Hx = H*x;
+% Solve the problem.
+[x,Obj,INFO,lambda,states,output] = sqopt(H, f, x0, xl, xu, A, al, au);
+
 
 
 

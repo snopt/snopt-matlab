@@ -1,22 +1,16 @@
 function [x,F,xmul,Fmul,INFO] = t1diet()
 
-snprint('t1diet.out');
-
-t1diet.spc = which('t1diet.spc');
-snspec ( t1diet.spc );
+options.printfile = 't1diet.out';
+options.specsfile = which('t1diet.spc');
 
 [x,xlow,xupp,xmul,xstate, ...
    Flow,Fupp,Fmul,Fstate, ...
- ObjAdd,ObjRow,A,iAfun,jAvar,iGfun,jGvar] = dietdata;
+ ObjAdd,ObjRow,A.val,A.row,A.col,G.row,G.col] = dietdata;
 
 [x,F,INFO,xmul,Fmul,xstate,Fstate,output]= snopt( x, xlow, xupp, xmul, xstate, ...
 						  Flow, Fupp, Fmul, Fstate, ...
 						  @t1dietuserfun, ObjAdd, ObjRow, ...
-						  A, iAfun, jAvar, iGfun, jGvar ...
-						  );
-
-snprint off;
-snend;
+						  A, G, options);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [x,xlow,xupp,xmul,xstate, ...

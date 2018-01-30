@@ -11,22 +11,19 @@ function [x,F,xmul,Fmul,INFO] = sntoy()
 %
 %
 
-snprint('sntoy.out');  % By default, screen output is off;
-sntoy.spc = which('sntoy.spc');
-snspec (sntoy.spc);
-snseti ('Major Iteration limit', 250);
+options.name = 'sntoy';
+options.screen = 'on';
+options.printfile = 'sntoy.out';
+options.specsfile = which('sntoy.spc');
 
 [x,xlow,xupp,xmul,xstate, ...
    Flow,Fupp,Fmul,Fstate, ...
- ObjAdd,ObjRow,A,iAfun,jAvar,iGfun,jGvar] = toydata;
+ ObjAdd,ObjRow,A.val,A.row,A.col,G.row,G.col] = toydata;
 
-[x,F,INFO]= snopt( x, xlow, xupp, xmul, xstate, ...
-		   Flow, Fupp, Fmul, Fstate, ...
-		   @toyusrfun, ObjAdd, ObjRow, ...
-		   A, iAfun, jAvar, iGfun, jGvar );
-
-snprint off;
-snend;
+[x,F,INFO]= snopt(x, xlow, xupp, xmul, xstate, ...
+		  Flow, Fupp, Fmul, Fstate, ...
+		  @toyusrfun, ObjAdd, ObjRow, ...
+		  A, G, options);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [x,xlow,xupp,xmul,xstate, ...
