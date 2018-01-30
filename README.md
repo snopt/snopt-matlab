@@ -16,3 +16,5 @@ Examples are located in the directory matlab/examples.
 If you downloaded the evaluation or student version of SNOPT and need the Matlab m-files and examples, the files are located in the matlab directory.
 
 Documentation for the Matlab interface available <a href="http://ccom.ucsd.edu/~elwong/p/snoptMatlab.pdf">here</a>.
+
+**NOTE** Check out branch 'version3' for the next version of the matlab interface.
