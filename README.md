@@ -9,5 +9,5 @@ Changes from version 2.5:
 * all-in-one calls to SNOPT (for NLPs) and SQOPT (for LPs and QPs)
 * new options handling
 * specifiy print, summary output via options structure
-* linear and nonlinear Jacobian structure in SNOPT are defined in structs
+* linear and nonlinear Jacobian structure in SNOPT can be defined in structs or as matrices
 
