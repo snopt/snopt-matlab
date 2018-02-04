@@ -170,7 +170,7 @@ if ~strcmp(specsfile,''),
 
   if info ~= 101 && info ~= 107,
     x = []; obj = 0; output = []; lambda = []; states = [];
-    end_lpopt();
+    end_sqopt();
     return;
   end
 end
@@ -290,4 +290,4 @@ c   = colvec(c,'c',1,0);
 						neA, indA, locA, valA, al, au, astate, amul);
 
 
-end_lpopt();
+end_sqopt();
