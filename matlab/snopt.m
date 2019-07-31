@@ -425,7 +425,7 @@ end
 
 % Call snJac
 if callJac > 0,
-  [valA,iAfun,jAvar,iGfun,jGvar] = snjac(userFG,x,xlow,xupp,nF);
+  [valA,iAfun,jAvar,iGfun,jGvar] = snJac(userFG,x,xlow,xupp,nF);
 end
 
 [x,F,info,xmul,Fmul, ...
