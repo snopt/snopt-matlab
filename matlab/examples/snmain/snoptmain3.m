@@ -10,23 +10,28 @@ options.specsfile = which('snoptmain3.spc');
 options.printfile = 'snoptmain3.out';
 
 options.verify_level = 3;
+options.maximize = 1;
 options.derivative_option = 0;
+
 
 % Get the data defining the Hexagon problem.
 [x,xlow,xupp,xmul,xstate, ...
  Flow,Fupp,Fmul,Fstate, ...
- A.val,A.row,A.col,G.row,G.col] = hexagon;
+ A.val,A.row,A.col,G.row,G.col, ...
+ ObjRow, ObjAdd] = hexagon;
 
 [x,F,INFO] = snopt(x,xlow,xupp,xmul,xstate, ...
 		   Flow,Fupp,Fmul,Fstate, ...
 		   @snoptuserfun3, ...
+		   ObjAdd, ObjRow, ...
 		   A, G, options);
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
  function [x,xlow,xupp,xmul,xstate, ...
    	     Flow,Fupp,Fmul,Fstate, ...
-	   A,iAfun,jAvar,iGfun,jGvar] = hexagon()
+	   A,iAfun,jAvar,iGfun,jGvar, ...
+	   Obj, ObjAdd] = hexagon()
 %function [x,xlow,xupp,Flow,Fupp,A,iAfun,jAvar,iGfun,jGvar] = hexagon()
 %
 % Defines the problem hexagon:
@@ -58,6 +63,7 @@ options.derivative_option = 0;
 neF    = 19;
 n      =  9;
 Obj    =  1; % The default objective row
+ObjAdd = 0.;
 
 % The nonzeros of the Jacobian of F are provided in snoptuserfun3
 
@@ -165,5 +171,3 @@ x   =  [ .1;
          .25;
         -.2;
         -.25 ];
-
-snset('Maximize');
