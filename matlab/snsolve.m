@@ -243,7 +243,7 @@ myobj = checkFun(obj,'SNOPT','obj');
 
 gotGrad = 0;
 try
-  [fobj,gobj] = myobj(x0);
+  [fobj,gradobj] = myobj(x0);
   gotGrad = 1;
 catch
   try
@@ -324,8 +324,8 @@ elseif nargin >= 9 && nargin <= 12,
 
   gotDeriv = 0;
   try
-    [c,ceq,J,Jeq] = nonlcon(x0);
-    J = J';  Jeq = Jeq';
+    [c,ceq,gradc,gradceq] = nonlcon(x0);
+    jacc = gradc';  jaceq = gradceq';
     gotDeriv = 1;
   catch
     try
@@ -422,11 +422,11 @@ function [F,G] = snfun(x,needF,needG,obj,gotGrad,varargin)
 % Wrapper for obj and nonlcon in snsolve call.
 
 % Compute objective function and gradients
-fobj = []; gobj = [];
+fobj = []; gradobj = [];
 
 if needG > 0,
   if gotGrad,
-    [fobj,gobj] = obj(x);
+    [fobj,gradobj] = obj(x);
   else
     if needF > 0,
       fobj = obj(x);
@@ -437,8 +437,8 @@ else
 end
 
 % Compute constraint functions and gradients
-c    = []; ceq  = [];
-J    = []; Jeq  = [];
+c     = []; ceq  = [];
+gradc = []; gradceq  = [];
 
 if nargin == 9,
   nonlcon  = varargin{1};
@@ -448,10 +448,10 @@ if nargin == 9,
 
   if needG > 0,
     if gotDeriv,
-      [c,ceq,J,Jeq] = nonlcon(x);
+      [c,ceq,gradc,gradceq] = nonlcon(x);
     else
       if needF > 0,
-	[c,ceq] = nonlcon(x);
+	    [c,ceq] = nonlcon(x);
       end
     end
   else
@@ -459,8 +459,8 @@ if nargin == 9,
   end
 end
 
-F = [  fobj; c; ceq ];
-G = [ gobj'; J; Jeq ];
+F = [ fobj;   c;    ceq     ];
+G = [ gradobj gradc gradceq ]';
 
 % Convert G to vector format to match SNOPTA and (iGfun,jGvar)
 [~,n] = size(G);
