@@ -11,3 +11,6 @@ Changes from version 2.5:
 * specifiy print, summary output via options structure
 * linear and nonlinear Jacobian structure in SNOPT can be defined in structs or as matrices
 
+
+Documentation for the Matlab interface available <a href="http://ccom.ucsd.edu/~optimizers/docs/snopt">here</a>.
+
