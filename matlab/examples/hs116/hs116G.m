@@ -3,7 +3,7 @@ function [x,F,xmul,Fmul,INFO] = hs116G()
 options.printfile = 'hs116.out';
 options.specsfile = which('hs116.spc');
 options.screen = 'on';
-options.name = 'hs116G;
+options.name = 'hs116G';
 
 [x,xlow,xupp,xmul,xstate, ...
    Flow,Fupp,Fmul,Fstate, ...

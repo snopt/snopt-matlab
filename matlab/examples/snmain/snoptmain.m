@@ -7,7 +7,6 @@ options.name = 'snmain';
 options.screen = 'on';
 
 options.printfile = 'snoptmain.out';
-options.specesfile = which('snoptmain.spc');
 
 %Get condensed data for the Hexagon problem.
 [x,xlow,xupp,xmul,xstate,Flow,Fupp,Fmul,Fstate] = hexagon;
@@ -15,7 +14,8 @@ options.specesfile = which('snoptmain.spc');
 options.maximize = '';
 
 [x,F,INFO,~,~,~,~,output] = snopt(x,xlow,xupp,xmul,xstate,...
-				  Flow,Fupp,Fmul,Fstate,@snoptuserfun);
+				  Flow,Fupp,Fmul,Fstate,@snoptuserfun, ...
+				  options);
 
 itns   =  output.iterations;
 majors =  output.majors;

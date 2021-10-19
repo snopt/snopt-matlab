@@ -12,11 +12,11 @@ options.printfile = 'snoptmain2.out';
 %Get condensed data for the Hexagon problem.
 [x,xlow,xupp,xmul,xstate, ...
    Flow,Fupp,Fmul,Fstate, ...
- A.val, A.row, A.col, G.row, G.col, ...
- ObjRow, ObjAdd] = hexagon;
+ A.val, A.row, A.col, G.row, G.col] = hexagon;
 
 options.maximize = '';
 
+ObjAdd = 0; ObjRow = 1;
 [x,F,INFO] = snopt(x,xlow,xupp,xmul,xstate, ...
 		   Flow,Fupp,Fmul,Fstate, ...
 		   @snoptuserfun2, ...
@@ -27,8 +27,7 @@ options.maximize = '';
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
  function [x,xlow,xupp,xmul,xstate, ...
 	   Flow,Fupp,Fmul,Fstate, ...
-	   A,iAfun,jAvar,iGfun,jGvar ...
-	   Obj, ObjAdd] = hexagon()
+	   A,iAfun,jAvar,iGfun,jGvar] = hexagon()
 %function [x,xlow,xupp,Flow,Fupp,A,iAfun,jAvar,iGfun,jGvar] = hexagon()
 %
 % Defines the problem hexagon:
@@ -60,7 +59,6 @@ options.maximize = '';
 neF    = 19;
 n      =  9;
 Obj    =  1; % The default objective row
-ObjAdd = 0.;
 
 % A dense Jacobian of F is provided in snoptuserfun2
 

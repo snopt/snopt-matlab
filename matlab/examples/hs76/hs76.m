@@ -49,9 +49,4 @@ H = [  2  0  -1  0  ;
        0  0   1  1 ];
 
 % Solve the problem.
-[x,Obj,INFO,lambda,states,output] = sqopt(H, f, x0, xl, xu, A, al, au);
-
-
-
-
-
+[x,Obj,INFO,lambda,states,output] = sqopt(H, f, x0, xl, xu, A, al, au, options);
