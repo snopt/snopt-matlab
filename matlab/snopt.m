@@ -1,6 +1,6 @@
-function [x,F,info,xmul,Fmul,xstate,Fstate,output] = snopt(x, xlow, xupp, xmul, xstate,...
-						  Flow, Fupp, Fmul, Fstate,...
-						  userfun, varargin);
+function [x,F,info,xmul,Fmul,xstate,Fstate,output] = ...
+        snopt(x, xlow, xupp, xmul, xstate, Flow, Fupp, Fmul, Fstate, ...
+              userfun, varargin);
 % This function solves the nonlinear optimization problem:
 % minimize:
 %            F(ObjRow) + ObjAdd
@@ -167,6 +167,10 @@ function [x,F,info,xmul,Fmul,xstate,Fstate,output] = snopt(x, xlow, xupp, xmul, 
 %               options.rwork       is an integer defining the real
 %                                   SNOPT workspace length.
 %
+%               options.warning     is a string set to 'on' or 'off' to turn on or off
+%                                   warning messages.
+%
+%
 name       = '';
 istart     = 0;
 
@@ -176,6 +180,8 @@ specsfile  = '';
 
 iwork      = 0;
 rwork      = 0;
+
+print_warning = 1;
 
 stopFun    = 0;
 optionsLoc = 0;
@@ -243,6 +249,17 @@ if nargin == 11 || nargin == 13 || nargin == 15,
     if isfield(options,'rwork'),
       if ischar(options.rwork),
 	rwork = options.rwork;
+      end
+    end
+
+    % warning
+    if isfield(options,'warning'),
+      if ischar(options.warning),
+        if options.warning == 'off',
+            print_warning = 0;
+        else
+            print_warning = 1;
+        end
       end
     end
 
@@ -331,7 +348,9 @@ if nargin == 10 || nargin == 11,
   %           [options])
   % User is not providing derivative structures.
 
-  warning('SNOPT:Input','User is not providing SNOPT derivatives structures');
+  if print_warning,
+      warning('SNOPT:Input','User is not providing SNOPT derivatives structures');
+  end
 
   F0 = userFG(x);
   nF = length(F0);
@@ -341,11 +360,15 @@ if nargin == 10 || nargin == 11,
   if ~gotDeriv,
     % User is also not providing derivatives.
     % Call snJac to estimate the pattern of nonzeros for the Jacobian.
-    warning('SNOPT:Input','Derivative structures estimated via snJac');
+    if print_warning,
+        warning('SNOPT:Input','Derivative structures estimated via snJac');
+    end
   else
     % User IS providing derivatives via userfun.
-    warning('SNOPT:Input',['Derivatives provided but not structures: estimating' ...
-		    ' structure via snJac.']);
+    if print_warning,
+        warning('SNOPT:Input',['Derivatives provided but not structures: estimating' ...
+                            ' structure via snJac.']);
+    end
   end
 
 elseif nargin == 12 || nargin == 13,
@@ -354,7 +377,9 @@ elseif nargin == 12 || nargin == 13,
   %       ObjAdd, ObjRow, [options])
   % User is not providing derivative structures.
 
-  warning('SNOPT:Input','User is not providing SNOPT derivatives structures');
+  if print_warning,
+      warning('SNOPT:Input','User is not providing SNOPT derivatives structures');
+  end
 
   F0 = userFG(x);
   nF = length(F0);
@@ -363,11 +388,15 @@ elseif nargin == 12 || nargin == 13,
   callJac = 1;
   if ~gotDeriv,
     % Call snJac to estimate the pattern of nonzeros for the Jacobian.
-    warning('SNOPT:Input','Derivative structures estimated via snJac');
+    if print_warning,
+        warning('SNOPT:Input','Derivative structures estimated via snJac');
+    end
   else
     % User IS providing derivatives via userfun.
-    warning('SNOPT:Input',['Derivatives provided but not structures: estimating' ...
-		    ' structure via snJac.']);
+    if print_warning,
+        warning('SNOPT:Input',['Derivatives provided but not structures: estimating' ...
+                            ' structure via snJac.']);
+    end
   end
 
   ObjAdd = varargin{1};
@@ -440,6 +469,7 @@ end
 				     iGfun, jGvar);
 end_snopt();
 
+end % snopt
 
 function [F,G] = snfun(x,needF,needG,userfun,gotDeriv,iGfun,jGvar)
 % Wrapper for userfun
@@ -467,3 +497,5 @@ else
     F = userfun(x);
   end
 end
+
+end % snfun

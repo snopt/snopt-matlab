@@ -77,6 +77,9 @@ function [x,obj,info,output,lambda,states] = sqopt(H, c, x0, xl, xu, A, al, au, 
 %               options.rwork       is an integer defining the real
 %                                   SNOPT workspace length.
 %
+%               options.warning     is a string set to 'on' or 'off' to turn on or off
+%                                   warning messages.
+%
 %
 % OUTPUT:
 %  x        is the final point
@@ -104,6 +107,8 @@ start      = 'Cold';
 printfile  = '';
 screen     = 'on';
 specsfile  = '';
+
+print_warning = 1;
 
 iwork      = 0;
 rwork      = 0;
@@ -159,6 +164,17 @@ if nargin == 9 || nargin == 11,
       end
     end
 
+    % warning
+    if isfield(options,'warning'),
+      if ischar(options.warning),
+        if options.warning == 'off',
+            print_warning = 0;
+        else
+            print_warning = 1;
+        end
+      end
+    end
+
   else
     optionsLoc = 0;
   end
@@ -211,12 +227,16 @@ if (optionsLoc ~= 0),
 end
 
 if isempty(H),
-    warning('No Hessian detected: the problem is an LP');
+    if print_warning,
+        warning('No Hessian detected: the problem is an LP');
+    end
     userHx = 0;
 else
   if isnumeric(H),
     if H == 0,
-      warning('No Hessian detected: the problem is an LP');
+      if print_warning,
+          warning('No Hessian detected: the problem is an LP');
+      end
       userHx = 0;
     else
       userHx = @(x)myHx(H,x);
@@ -266,7 +286,9 @@ end
 
 if isempty(A),
   % Setup fake constraint matrix and bounds
-  warning('SQOPT:InputArgs','No linear constraints detected; dummy constraint created');
+  if print_warning,
+      warning('SQOPT:InputArgs','No linear constraints detected; dummy constraint created');
+  end
 
   m = 1;
   n = numel(x0);

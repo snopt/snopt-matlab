@@ -70,6 +70,9 @@ function [x,fval,exitFlag,output,lambda] = sqsolve(H, f, varargin)
 %               options.rwork       is an integer defining the real
 %                                   SNOPT workspace length.
 %
+%               options.warning     is a string set to 'on' or 'off' to turn on or off
+%                                   warning messages.
+%
 %   OUTPUT:
 %     x        is the final point
 %
@@ -96,6 +99,8 @@ start    = 'Cold';
 printfile  = '';
 screen     = 'on';
 specsfile  = '';
+
+print_warning = 1;
 
 iwork      = 0;
 rwork      = 0;
@@ -148,6 +153,17 @@ if nargin == 10 || nargin == 12,
     if isfield(options,'rwork'),
       if ischar(options.rwork),
 	rwork = options.rwork;
+      end
+    end
+
+    % warning
+    if isfield(options,'warning'),
+      if ischar(options.warning),
+        if options.warning == 'off',
+            print_warning = 0;
+        else
+            print_warning = 1;
+        end
       end
     end
 
@@ -205,12 +221,16 @@ if (optionsLoc ~= 0),
 end
 
 if isempty(H),
-    warning('No Hessian detected: the problem is an LP');
+    if print_warning,
+        warning('No Hessian detected: the problem is an LP');
+    end
     userHx = 0;
 else
   if isnumeric(H),
     if H == 0,
-      warning('No Hessian detected: the problem is an LP');
+      if print_warning,
+          warning('No Hessian detected: the problem is an LP');
+      end
       userHx = 0;
     else
       userHx = @(x)myHx(H,x);
