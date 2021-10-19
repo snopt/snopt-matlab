@@ -1,5 +1,5 @@
 function snseti( option, ivalue )
-% function snset( option )
+% function snseti( option, ivalue )
 %     Sets a optional integer parameter of snopt. The string "option" will be read
 %     by snopt. If the string contains a setting that snopt understands,
 %     snopt will set internal parameters accordingly. For a description of

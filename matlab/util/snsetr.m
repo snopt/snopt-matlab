@@ -1,5 +1,5 @@
 function snsetr( option, rvalue )
-% function snset( option )
+% function snsetr( option, rvalue )
 %     Sets a optional real parameter of snopt. The string "option" will be read
 %     by snopt. If the string contains a setting that snopt understands,
 %     snopt will set internal parameters accordingly. For a description of
